@@ -111,7 +111,11 @@ router.put('/:id', requireAdmin, upload.single('image'), (req, res) => {
     return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   }
   const p = parsed.data;
-  const image = req.file ? `/uploads/${req.file.filename}` : existing.image;
+  const image = req.file
+    ? `/uploads/${req.file.filename}`
+    : req.body.removeImage === 'true'
+      ? null
+      : existing.image;
 
   db.prepare(
     `UPDATE products

@@ -223,15 +223,16 @@
   }
   .excel-sheet-tabs button.active{background:var(--ink);color:var(--paper);}
   .excel-table-scroll{overflow-x:auto;border:1px solid var(--ink);}
-  .excel-table{border-collapse:collapse;width:100%;font-size:13px;}
-  .excel-table td, .excel-table th{
+  .excel-table-scroll table{border-collapse:collapse;width:100%;font-size:13px;}
+  .excel-table-scroll td, .excel-table-scroll th{
     border:1px solid var(--concrete);padding:8px 12px;white-space:nowrap;text-align:left;
   }
-  .excel-table thead th{
+  .excel-table-scroll thead th{
     background:var(--ink);color:var(--paper);font-family:'IBM Plex Mono',monospace;
     font-size:11px;font-weight:500;position:sticky;top:0;
   }
-  .excel-table tbody tr:nth-child(even){background:var(--concrete);}
+  .excel-table-scroll tbody tr:nth-child(even){background:var(--concrete);}
+  .excel-table-scroll h4{font-family:'IBM Plex Sans',sans-serif;font-size:16px;margin:20px 0 8px;}
   .excel-empty{padding:40px 0;color:var(--graphite);text-align:center;}
 
   /* RÓLUNK / ELÉRHETŐSÉGEINK */
@@ -432,10 +433,8 @@
       <h3 id="excelPageTitle">Feltöltött lap</h3>
       <div class="results-count" id="excelMeta"></div>
     </div>
-    <div class="excel-sheet-tabs" id="excelSheetTabs"></div>
-    <div class="excel-table-scroll">
-      <table class="excel-table" id="excelTable"></table>
-    </div>
+    <div class="excel-sheet-tabs" id="excelSheetTabs" style="display:none;"></div>
+    <div class="excel-table-scroll"></div>
   </div>
 </div>
 
@@ -505,11 +504,15 @@
     <div class="modal-head"><h3>Admin bejelentkezés</h3><button class="modal-close" data-close="loginOverlay">×</button></div>
     <div class="modal-body">
       <div class="form-field full">
-        <label>Jelszó</label>
-        <input type="password" id="adminPassword" placeholder="Demó jelszó: vulc-admin">
+        <label>Email</label>
+        <input type="email" id="adminEmail" autocomplete="username">
       </div>
-      <div class="error-text" id="loginError" style="display:none;">Hibás jelszó. Próbáld újra.</div>
-      <div class="hint-text">Ez egy demó bolt, ezért a jelszó szándékosan látható fent.</div>
+      <div class="form-field full">
+        <label>Jelszó</label>
+        <input type="password" id="adminPassword" autocomplete="current-password">
+      </div>
+      <div class="error-text" id="loginError" style="display:none;">Hibás email vagy jelszó.</div>
+      <div class="hint-text">Admin fiókot a backend <code>/api/auth/register</code> végpontján lehet létrehozni, érvényes admin kóddal.</div>
       <div class="modal-actions">
         <button class="btn-ghost" data-close="loginOverlay">Mégse</button>
         <button class="btn-primary" id="loginSubmit">Bejelentkezés</button>
@@ -658,52 +661,75 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-const PRODUCTS_KEY = 'vulc-products-hu-v1';
+// Backend API — igazítsd az élő szerver címéhez. A munkamenet-cookie
+// SameSite=Strict, ezért ezt a HTML-t is HTTP-n keresztül kell kiszolgálni
+// (nem file://), és azonos "site"-nak kell számítania a backenddel
+// (pl. mindkettő http://localhost, csak eltérő porton).
+const API_ORIGIN = 'http://localhost:4000';
+const API_BASE = API_ORIGIN + '/api';
 const CART_KEY = 'vulc-cart-hu-v1';
-const ADMIN_PASSWORD = 'vulc-admin';
 
-const SEED = [
-  {id:'1',brand:'Kordon',model:'Road Grip S2',width:205,profile:55,rim:16,season:'summer',price:98,stock:24,speed:'V',load:'91'},
-  {id:'2',brand:'Aerowall',model:'Silent Line',width:205,profile:55,rim:16,season:'all-season',price:104,stock:6,speed:'H',load:'91'},
-  {id:'3',brand:'Nortrek',model:'Ice Command',width:205,profile:55,rim:16,season:'winter',price:112,stock:0,speed:'T',load:'91'},
-  {id:'4',brand:'Solmark',model:'Apex R',width:225,profile:45,rim:17,season:'summer',price:139,stock:14,speed:'W',load:'94'},
-  {id:'5',brand:'Vantis',model:'Cross Country',width:225,profile:65,rim:17,season:'all-season',price:127,stock:19,speed:'H',load:'102'},
-  {id:'6',brand:'Halcyon',model:'Polar Line',width:225,profile:45,rim:17,season:'winter',price:145,stock:3,speed:'V',load:'94'},
-  {id:'7',brand:'Kordon',model:'City Runner',width:185,profile:60,rim:15,season:'all-season',price:78,stock:31,speed:'T',load:'84'},
-  {id:'8',brand:'Solmark',model:'Track Day', width:245,profile:40,rim:18,season:'summer',price:189,stock:8,speed:'Y',load:'97'},
-  {id:'9',brand:'Aerowall',model:'Frost Guard',width:195,profile:65,rim:15,season:'winter',price:89,stock:0,speed:'T',load:'91'},
-  {id:'10',brand:'Vantis',model:'Longhaul Plus',width:215,profile:60,rim:16,season:'all-season',price:118,stock:22,speed:'H',load:'95'},
-  {id:'11',brand:'Nortrek',model:'Storm Wide',width:245,profile:45,rim:18,season:'winter',price:172,stock:11,speed:'V',load:'100'},
-  {id:'12',brand:'Halcyon',model:'Circuit S',width:235,profile:35,rim:19,season:'summer',price:210,stock:5,speed:'Y',load:'92'},
-];
+async function apiFetch(path, options={}){
+  const res = await fetch(`${API_BASE}${path}`, { credentials:'include', ...options });
+  if(res.status===204) return null;
+  let body = null;
+  try{ body = await res.json(); }catch(e){}
+  if(!res.ok){ throw new Error((body && body.error) || `Hiba (${res.status})`); }
+  return body;
+}
+function apiJson(path, method, data){
+  return apiFetch(path, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+}
+function apiForm(path, method, formData){
+  return apiFetch(path, { method, body:formData });
+}
+function resolveImageUrl(path){
+  if(!path) return null;
+  return path.startsWith('http') ? path : API_ORIGIN + path;
+}
 
 let products = [];
 let cart = [];
 let isAdmin = false;
+let currentUser = null;
 let activeSeasonFilters = [];
 let activeBrandFilters = [];
 let searchQuery = {mode:'size', width:'', profile:'', rim:'', text:''};
 
+function mapProduct(p){
+  return { ...p, id: String(p.id), load: p.loadIndex, image: resolveImageUrl(p.image) };
+}
+
+async function checkSession(){
+  try{
+    const data = await apiFetch('/auth/me');
+    currentUser = data.user;
+    isAdmin = data.user.role === 'admin';
+  }catch(e){
+    currentUser = null;
+    isAdmin = false;
+  }
+  document.getElementById('adminBar').style.display = isAdmin ? 'block' : 'none';
+}
+
 async function loadProducts(){
   try{
-    const res = await window.storage.get(PRODUCTS_KEY, true);
-    products = res ? JSON.parse(res.value) : SEED;
-    if(!res){ await window.storage.set(PRODUCTS_KEY, JSON.stringify(SEED), true); }
-  }catch(e){ products = SEED; }
+    const data = await apiFetch('/products');
+    products = data.products.map(mapProduct);
+  }catch(e){
+    console.error('Nem sikerült betölteni a termékeket:', e);
+    products = [];
+  }
 }
-async function saveProducts(){
-  try{ await window.storage.set(PRODUCTS_KEY, JSON.stringify(products), true); }catch(e){}
-}
-async function loadCart(){
+function loadCart(){
   try{
-    const res = await window.storage.get(CART_KEY, false);
-    cart = res ? JSON.parse(res.value) : [];
+    const raw = localStorage.getItem(CART_KEY);
+    cart = raw ? JSON.parse(raw) : [];
   }catch(e){ cart = []; }
 }
-async function saveCart(){
-  try{ await window.storage.set(CART_KEY, JSON.stringify(cart), false); }catch(e){}
+function saveCart(){
+  try{ localStorage.setItem(CART_KEY, JSON.stringify(cart)); }catch(e){}
 }
 
 function uniq(arr){ return [...new Set(arr)]; }
@@ -946,23 +972,36 @@ document.getElementById('adminNavBtn').addEventListener('click', ()=>{
   if(isAdmin){ openOverlay('manageOverlay'); renderAdminTable(); }
   else openOverlay('loginOverlay');
 });
-document.getElementById('loginSubmit').addEventListener('click', ()=>{
-  const val = document.getElementById('adminPassword').value;
-  if(val===ADMIN_PASSWORD){
-    isAdmin = true;
+document.getElementById('loginSubmit').addEventListener('click', async ()=>{
+  const email = document.getElementById('adminEmail').value.trim();
+  const password = document.getElementById('adminPassword').value;
+  const errEl = document.getElementById('loginError');
+  try{
+    const data = await apiJson('/auth/login', 'POST', { email, password });
+    currentUser = data.user;
+    isAdmin = data.user.role === 'admin';
+    if(!isAdmin){
+      errEl.textContent = 'Ez a fiók nem admin jogosultságú.';
+      errEl.style.display='block';
+      return;
+    }
     document.getElementById('adminBar').style.display='block';
+    document.getElementById('adminEmail').value='';
     document.getElementById('adminPassword').value='';
-    document.getElementById('loginError').style.display='none';
+    errEl.style.display='none';
     closeOverlay('loginOverlay');
     renderGrid();
     renderPageNav();
     switchPage(activePageId);
-  } else {
-    document.getElementById('loginError').style.display='block';
+  }catch(e){
+    errEl.textContent = e.message || 'Hibás email vagy jelszó.';
+    errEl.style.display='block';
   }
 });
-document.getElementById('logoutBtn').addEventListener('click', ()=>{
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  try{ await apiFetch('/auth/logout', { method:'POST' }); }catch(e){}
   isAdmin=false;
+  currentUser=null;
   document.getElementById('adminBar').style.display='none';
   renderGrid();
   renderPageNav();
@@ -980,17 +1019,21 @@ function renderAdminTable(){
       <td><button class="edit-row" data-id="${p.id}">Szerkesztés</button><button class="del del-row" data-id="${p.id}">Törlés</button></td>
     </tr>`).join('');
   tbody.querySelectorAll('.edit-row').forEach(b=>b.addEventListener('click', ()=>{ closeOverlay('manageOverlay'); openProductForm(b.dataset.id); }));
-  tbody.querySelectorAll('.del-row').forEach(b=>b.addEventListener('click', ()=>{ deleteProduct(b.dataset.id); renderAdminTable(); }));
+  tbody.querySelectorAll('.del-row').forEach(b=>b.addEventListener('click', async ()=>{ await deleteProduct(b.dataset.id); renderAdminTable(); }));
 }
 
-let pfImageData = null;
+// A termékkép mostantól valódi fájlként (multipart/form-data) megy fel a
+// szerverre a mentéskor — itt csak egy helyi előnézetet tartunk meg.
+let pfImageFile = null;
+let pfImagePreviewUrl = null;
+let pfImageRemoved = false;
 
 function updatePfImagePreview(){
   const preview = document.getElementById('pfImagePreview');
   const placeholder = document.getElementById('pfImagePlaceholder');
   const removeBtn = document.getElementById('pfImageRemove');
-  if(pfImageData){
-    preview.src = pfImageData;
+  if(pfImagePreviewUrl){
+    preview.src = pfImagePreviewUrl;
     preview.style.display='block';
     placeholder.style.display='none';
     removeBtn.style.display='inline-block';
@@ -1004,19 +1047,19 @@ function updatePfImagePreview(){
 document.getElementById('pfImageBtn').addEventListener('click', ()=>{
   document.getElementById('pfImageInput').click();
 });
-document.getElementById('pfImageInput').addEventListener('change', async (e)=>{
+document.getElementById('pfImageInput').addEventListener('change', (e)=>{
   const file = e.target.files[0];
   if(!file) return;
-  try{
-    pfImageData = await resizeImageFile(file, 500, 0.85);
-    updatePfImagePreview();
-  }catch(err){
-    alert('Nem sikerült feltölteni a képet.');
-  }
+  pfImageFile = file;
+  pfImageRemoved = false;
+  pfImagePreviewUrl = URL.createObjectURL(file);
+  updatePfImagePreview();
   e.target.value = '';
 });
 document.getElementById('pfImageRemove').addEventListener('click', ()=>{
-  pfImageData = null;
+  pfImageFile = null;
+  pfImagePreviewUrl = null;
+  pfImageRemoved = true;
   updatePfImagePreview();
 });
 
@@ -1035,7 +1078,9 @@ function openProductForm(id){
   document.getElementById('pfStock').value = p ? p.stock : '';
   document.getElementById('pfSpeed').value = p ? (p.speed||'') : '';
   document.getElementById('pfLoad').value = p ? (p.load||'') : '';
-  pfImageData = p ? (p.image || null) : null;
+  pfImageFile = null;
+  pfImageRemoved = false;
+  pfImagePreviewUrl = p ? (p.image || null) : null;
   updatePfImagePreview();
   openOverlay('productFormOverlay');
 }
@@ -1055,25 +1100,39 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
     errEl.style.display='block';
     return;
   }
+  errEl.style.display='none';
 
   const id = document.getElementById('pfId').value;
-  const data = {
-    id: id || Date.now().toString(),
-    brand, model,
-    width: Number(width), profile: Number(profile), rim: Number(rim),
-    season: document.getElementById('pfSeason').value,
-    price: Number(price), stock: Number(stock),
-    speed: document.getElementById('pfSpeed').value.trim(),
-    load: document.getElementById('pfLoad').value.trim(),
-    image: pfImageData || null,
-  };
-
-  if(id){
-    products = products.map(p=>p.id===id?data:p);
-  } else {
-    products.push(data);
+  const formData = new FormData();
+  formData.append('brand', brand);
+  formData.append('model', model);
+  formData.append('width', width);
+  formData.append('profile', profile);
+  formData.append('rim', rim);
+  formData.append('season', document.getElementById('pfSeason').value);
+  formData.append('price', price);
+  formData.append('stock', stock);
+  formData.append('speed', document.getElementById('pfSpeed').value.trim());
+  formData.append('loadIndex', document.getElementById('pfLoad').value.trim());
+  if(pfImageFile){
+    formData.append('image', pfImageFile);
+  } else if(pfImageRemoved){
+    formData.append('removeImage', 'true');
   }
-  await saveProducts();
+
+  try{
+    if(id){
+      await apiForm(`/products/${id}`, 'PUT', formData);
+    } else {
+      await apiForm('/products', 'POST', formData);
+    }
+  }catch(e){
+    errEl.textContent = e.message;
+    errEl.style.display='block';
+    return;
+  }
+
+  await loadProducts();
   populateSpecDropdowns();
   populateBrandFilters();
   closeOverlay('productFormOverlay');
@@ -1083,10 +1142,15 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
 
 async function deleteProduct(id){
   if(!confirm('Biztosan törlöd ezt a gumit a boltból?')) return;
+  try{
+    await apiFetch(`/products/${id}`, { method:'DELETE' });
+  }catch(e){
+    alert('Nem sikerült törölni: ' + e.message);
+    return;
+  }
   products = products.filter(p=>p.id!==id);
   cart = cart.filter(c=>c.id!==id);
-  await saveProducts();
-  await saveCart();
+  saveCart();
   populateSpecDropdowns();
   populateBrandFilters();
   renderGrid();
@@ -1094,18 +1158,19 @@ async function deleteProduct(id){
 }
 
 /* ---------- FELTÖLTÖTT OLDALAK (EXCEL) ---------- */
-const PAGES_KEY = 'vulc-pages-hu-v1';
-let pages = []; // {id, title, sheets:[{name, rows:[[...]]}] , activeSheet}
+// A feltöltött Excel/CSV fájlt a szerver dolgozza fel (SheetJS a backendben),
+// és egy kész HTML-blokkot ad vissza page.content-ként.
+let pages = []; // {id, title, content}
 let activePageId = 'shop';
 
 async function loadPages(){
   try{
-    const res = await window.storage.get(PAGES_KEY, true);
-    pages = res ? JSON.parse(res.value) : [];
-  }catch(e){ pages = []; }
-}
-async function savePages(){
-  try{ await window.storage.set(PAGES_KEY, JSON.stringify(pages), true); }catch(e){}
+    const data = await apiFetch('/pages');
+    pages = data.pages;
+  }catch(e){
+    console.error('Nem sikerült betölteni az oldalakat:', e);
+    pages = [];
+  }
 }
 
 function renderPageNav(){
@@ -1130,8 +1195,13 @@ function renderPageNav(){
     x.addEventListener('click', async (e)=>{
       e.stopPropagation();
       if(!confirm('Törlöd ezt a feltöltött oldalt?')) return;
+      try{
+        await apiFetch(`/pages/${x.dataset.delPage}`, { method:'DELETE' });
+      }catch(err){
+        alert('Nem sikerült törölni: ' + err.message);
+        return;
+      }
       pages = pages.filter(p=>p.id!==x.dataset.delPage);
-      await savePages();
       if(activePageId===x.dataset.delPage) switchPage('shop');
       else renderPageNav();
     });
@@ -1168,34 +1238,13 @@ function renderExcelPage(pageId){
   const page = pages.find(p=>p.id===pageId);
   if(!page) return;
   document.getElementById('excelPageTitle').textContent = page.title;
-  const sheetTabs = document.getElementById('excelSheetTabs');
-
-  if(page.sheets.length > 1){
-    sheetTabs.style.display='flex';
-    sheetTabs.innerHTML = page.sheets.map((s,i)=>`<button class="${i===page.activeSheet?'active':''}" data-i="${i}">${s.name}</button>`).join('');
-    sheetTabs.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
-      page.activeSheet = Number(b.dataset.i);
-      renderExcelPage(pageId);
-    }));
-  } else {
-    sheetTabs.style.display='none';
-    sheetTabs.innerHTML='';
-  }
-
-  const sheet = page.sheets[page.activeSheet || 0];
-  const rows = sheet ? sheet.rows : [];
-  document.getElementById('excelMeta').textContent = `${Math.max(rows.length-1,0)} sor`;
-
-  const table = document.getElementById('excelTable');
-  if(!rows.length){
-    table.innerHTML = '<tbody><tr><td class="excel-empty">Ez a lap üres.</td></tr></tbody>';
-    return;
-  }
-  const [header, ...body] = rows;
-  table.innerHTML = `
-    <thead><tr>${header.map(h=>`<th>${h ?? ''}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(r=>`<tr>${header.map((_,i)=>`<td>${r[i] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody>
-  `;
+  // A szerver egyetlen HTML-blokkot ad vissza (laponként egy fejléccel +
+  // táblázattal összefűzve), ezért itt nincs többé kliensoldali lap-váltó.
+  document.getElementById('excelSheetTabs').style.display='none';
+  document.getElementById('excelSheetTabs').innerHTML='';
+  document.getElementById('excelMeta').textContent='';
+  document.querySelector('.excel-table-scroll').innerHTML =
+    (page.content && page.content.trim()) ? page.content : '<div class="excel-empty">Ez az oldal üres.</div>';
 }
 
 document.getElementById('uploadExcelBtn').addEventListener('click', ()=>{
@@ -1205,55 +1254,47 @@ document.getElementById('uploadExcelBtn').addEventListener('click', ()=>{
 document.getElementById('excelFileInput').addEventListener('change', async (e)=>{
   const file = e.target.files[0];
   if(!file) return;
-  const buffer = await file.arrayBuffer();
-  let workbook;
-  try{
-    workbook = XLSX.read(buffer, {type:'array'});
-  }catch(err){
-    alert('Nem sikerült beolvasni a fájlt. Ellenőrizd, hogy .xlsx, .xls vagy .csv formátumú-e.');
-    e.target.value='';
-    return;
-  }
-  const sheets = workbook.SheetNames.map(name=>{
-    const ws = workbook.Sheets[name];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
-    return {name, rows};
-  });
   const title = file.name.replace(/\.[^/.]+$/, '');
-  const page = {id: 'page-'+Date.now(), title, sheets, activeSheet: 0};
-  pages.push(page);
-  await savePages();
-  renderPageNav();
-  switchPage(page.id);
+  const formData = new FormData();
+  formData.append('id', 'page-'+Date.now());
+  formData.append('title', title);
+  formData.append('file', file);
+  try{
+    const data = await apiForm('/pages', 'POST', formData);
+    pages.push(data.page);
+    renderPageNav();
+    switchPage(data.page.id);
+  }catch(err){
+    alert('Nem sikerült feltölteni a fájlt: ' + err.message);
+  }
   e.target.value='';
 });
 
 /* ---------- RÓLUNK / WEBSHOP BEVEZETŐ / ELÉRHETŐSÉGEINK ---------- */
-const CONTENT_KEY = 'vulc-content-hu-v2';
 const DEFAULT_SHOP_INTRO = `<div class="hero-eyebrow">EGY BOLT, EGY KÓD KÖRÜL FELÉPÍTVE</div>
 <h1 class="hero-title">Olvasd le<br>az oldalfalat.<br>Találd meg<br>a méretet.</h1>
 <p class="hero-sub">Minden gumin ott van a három szám, ami valójában számít. Keress ez alapján, ne találgatás alapján — így soha többé nem rendelsz rossz méretet.</p>`;
 const DEFAULT_ABOUT = `<p>A gumipont.hu egy modern, méret alapú gumibolt. Nálunk nem kell találgatni: megadod a szélességet, a profilt és a felnőméretet, mi pedig megmutatjuk, mi illik rá az autódra. A készletünket folyamatosan frissítjük, az árak és a raktárkészlet mindig aktuálisak.</p>`;
-const DEFAULT_CONTENT = {
-  shopIntro: DEFAULT_SHOP_INTRO,
-  about: DEFAULT_ABOUT,
-  contact: {
-    address: '1052 Budapest, Váci utca 12.',
-    phone: '+36 1 234 5678',
-    email: 'info@gumipont.hu',
-    note: ''
-  }
+const DEFAULT_CONTACT = {
+  address: '1052 Budapest, Váci utca 12.',
+  phone: '+36 1 234 5678',
+  email: 'info@gumipont.hu',
+  note: ''
 };
-let siteContent = JSON.parse(JSON.stringify(DEFAULT_CONTENT));
+let siteContent = { shopIntro: DEFAULT_SHOP_INTRO, about: DEFAULT_ABOUT, contact: {...DEFAULT_CONTACT} };
 
 async function loadContent(){
   try{
-    const res = await window.storage.get(CONTENT_KEY, true);
-    siteContent = res ? JSON.parse(res.value) : JSON.parse(JSON.stringify(DEFAULT_CONTENT));
-  }catch(e){ siteContent = JSON.parse(JSON.stringify(DEFAULT_CONTENT)); }
-}
-async function saveContent(){
-  try{ await window.storage.set(CONTENT_KEY, JSON.stringify(siteContent), true); }catch(e){}
+    const data = await apiFetch('/content');
+    const c = data.content || {};
+    siteContent = {
+      shopIntro: c.shop_intro ?? DEFAULT_SHOP_INTRO,
+      about: c.about ?? DEFAULT_ABOUT,
+      contact: c.contact ?? {...DEFAULT_CONTACT},
+    };
+  }catch(e){
+    console.error('Nem sikerült betölteni a tartalmat:', e);
+  }
 }
 
 /* ---- Egyszerű, újrahasznosítható szövegszerkesztő (kép feltöltéssel) ---- */
@@ -1329,8 +1370,14 @@ document.getElementById('shopIntroEditBtn').addEventListener('click', ()=>{
   openOverlay('shopIntroEditOverlay');
 });
 document.getElementById('shopIntroSave').addEventListener('click', async ()=>{
-  siteContent.shopIntro = document.getElementById('shopIntroEditor').innerHTML.trim();
-  await saveContent();
+  const value = document.getElementById('shopIntroEditor').innerHTML.trim();
+  try{
+    await apiJson('/content/shop_intro', 'PUT', { value });
+  }catch(e){
+    alert('Nem sikerült menteni: ' + e.message);
+    return;
+  }
+  siteContent.shopIntro = value;
   renderShopIntro();
   closeOverlay('shopIntroEditOverlay');
 });
@@ -1345,8 +1392,14 @@ document.getElementById('aboutEditBtn').addEventListener('click', ()=>{
   openOverlay('aboutEditOverlay');
 });
 document.getElementById('aboutSave').addEventListener('click', async ()=>{
-  siteContent.about = document.getElementById('aboutEditor').innerHTML.trim();
-  await saveContent();
+  const value = document.getElementById('aboutEditor').innerHTML.trim();
+  try{
+    await apiJson('/content/about', 'PUT', { value });
+  }catch(e){
+    alert('Nem sikerült menteni: ' + e.message);
+    return;
+  }
+  siteContent.about = value;
   renderAbout();
   closeOverlay('aboutEditOverlay');
 });
@@ -1376,20 +1429,29 @@ document.getElementById('contactSave').addEventListener('click', async ()=>{
   const phone = document.getElementById('contactEditPhone').value.trim();
   const email = document.getElementById('contactEditEmail').value.trim();
   if(!address || !phone || !email){
+    document.getElementById('contactFormError').textContent = 'Tölts ki minden mezőt.';
     document.getElementById('contactFormError').style.display = 'block';
     return;
   }
   const note = document.getElementById('contactNoteEditor').innerHTML.trim();
-  siteContent.contact = {address, phone, email, note};
-  await saveContent();
+  const value = {address, phone, email, note};
+  try{
+    await apiJson('/content/contact', 'PUT', { value });
+  }catch(e){
+    document.getElementById('contactFormError').textContent = 'Nem sikerült menteni: ' + e.message;
+    document.getElementById('contactFormError').style.display = 'block';
+    return;
+  }
+  siteContent.contact = value;
   renderContact();
   closeOverlay('contactEditOverlay');
 });
 
 /* ---------- INDÍTÁS ---------- */
 (async function init(){
+  await checkSession();
   await loadProducts();
-  await loadCart();
+  loadCart();
   await loadPages();
   await loadContent();
   populateSpecDropdowns();
