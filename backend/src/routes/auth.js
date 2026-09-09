@@ -4,7 +4,7 @@ import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import db from '../db.js';
 import { signToken } from '../lib/jwt.js';
-import { requireAuth, COOKIE_NAME } from '../middleware/auth.js';
+import { requireAuth, requireAdmin, COOKIE_NAME } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -27,34 +27,50 @@ const registerSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8).max(200),
-  adminCode: z.string().optional(),
 });
 
+// Public sign-up always creates a plain 'user' account. There is no
+// client-supplied way to get the 'admin' role — see POST /admins below,
+// which only an already-authenticated admin can call.
 router.post('/register', (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   }
-  const { name, email, password, adminCode } = parsed.data;
+  const { name, email, password } = parsed.data;
 
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
   if (existing) return res.status(409).json({ error: 'Email already registered' });
 
-  const isAdmin =
-    !!adminCode &&
-    !!process.env.ADMIN_REGISTRATION_CODE &&
-    adminCode === process.env.ADMIN_REGISTRATION_CODE;
-  const role = isAdmin ? 'admin' : 'user';
+  const passwordHash = bcrypt.hashSync(password, 12);
+  const info = db
+    .prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)')
+    .run(name, email, passwordHash, 'user');
+
+  const user = { id: info.lastInsertRowid, name, email, role: 'user' };
+  const token = signToken({ id: user.id, role: user.role });
+  res.cookie(COOKIE_NAME, token, cookieOptions);
+  res.status(201).json({ user });
+});
+
+// Admin-only: create another admin account. The caller's own session is
+// untouched (no cookie is set for the newly created account).
+router.post('/admins', requireAdmin, (req, res) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
+  }
+  const { name, email, password } = parsed.data;
+
+  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  if (existing) return res.status(409).json({ error: 'Email already registered' });
 
   const passwordHash = bcrypt.hashSync(password, 12);
   const info = db
     .prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)')
-    .run(name, email, passwordHash, role);
+    .run(name, email, passwordHash, 'admin');
 
-  const user = { id: info.lastInsertRowid, name, email, role };
-  const token = signToken({ id: user.id, role: user.role });
-  res.cookie(COOKIE_NAME, token, cookieOptions);
-  res.status(201).json({ user });
+  res.status(201).json({ user: { id: info.lastInsertRowid, name, email, role: 'admin' } });
 });
 
 const loginSchema = z.object({

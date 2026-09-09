@@ -1,17 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
-
-async function adminAgent(email) {
-  const agent = request.agent(app);
-  await agent.post('/api/auth/register').send({
-    name: 'Admin',
-    email,
-    password: 'jelszo1234',
-    adminCode: process.env.ADMIN_REGISTRATION_CODE,
-  });
-  return agent;
-}
+import { adminAgent } from './helpers.js';
 
 const sampleProduct = {
   brand: 'Kordon',
