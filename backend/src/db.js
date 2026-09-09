@@ -15,12 +15,14 @@ if (dbPath !== ':memory:') db.pragma('journal_mode = WAL');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  name          TEXT NOT NULL,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL CHECK(role IN ('user','admin')) DEFAULT 'user',
-  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                  TEXT NOT NULL,
+  email                 TEXT NOT NULL UNIQUE,
+  password_hash         TEXT NOT NULL,
+  role                  TEXT NOT NULL CHECK(role IN ('user','admin')) DEFAULT 'user',
+  reset_token_hash      TEXT,
+  reset_token_expires   DATETIME,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -93,5 +95,7 @@ ensureColumn('orders', 'customer_name', "customer_name TEXT NOT NULL DEFAULT ''"
 ensureColumn('orders', 'customer_email', "customer_email TEXT NOT NULL DEFAULT ''");
 ensureColumn('orders', 'customer_phone', "customer_phone TEXT NOT NULL DEFAULT ''");
 ensureColumn('orders', 'shipping_address', "shipping_address TEXT NOT NULL DEFAULT ''");
+ensureColumn('users', 'reset_token_hash', 'reset_token_hash TEXT');
+ensureColumn('users', 'reset_token_expires', 'reset_token_expires DATETIME');
 
 export default db;

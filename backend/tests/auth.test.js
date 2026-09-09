@@ -1,7 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
 import { adminAgent } from './helpers.js';
+
+// forgot-password "sends" its link via console.log (no mailer is configured
+// for this project) — capture it to pull out the token for testing.
+function captureResetToken(fn) {
+  const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  return fn().then((res) => {
+    const logged = spy.mock.calls.map((c) => c.join(' ')).join('\n');
+    spy.mockRestore();
+    const match = logged.match(/resetToken=([a-f0-9]+)/);
+    return { res, token: match ? match[1] : null };
+  });
+}
 
 describe('auth', () => {
   it('registers a new user with the default role and sets a session cookie', async () => {
@@ -116,5 +128,71 @@ describe('admin-created admin accounts', () => {
       .post('/api/auth/admins')
       .send({ name: 'Dup', email: 'dup-admin-owner@example.com', password: 'jelszo1234' });
     expect(res.status).toBe(409);
+  });
+});
+
+describe('forgot / reset password', () => {
+  it('gives the same response for a known and an unknown email (no user enumeration)', async () => {
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Forgetful', email: 'forgetful@example.com', password: 'jelszo1234' });
+
+    const known = await request(app).post('/api/auth/forgot-password').send({ email: 'forgetful@example.com' });
+    const unknown = await request(app).post('/api/auth/forgot-password').send({ email: 'nobody@example.com' });
+
+    expect(known.status).toBe(200);
+    expect(unknown.status).toBe(200);
+    expect(known.body.message).toBe(unknown.body.message);
+  });
+
+  it('lets a user reset their password with a valid token, and logs them in', async () => {
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Reset Me', email: 'resetme@example.com', password: 'oldpassword1' });
+
+    const { token } = await captureResetToken(() =>
+      request(app).post('/api/auth/forgot-password').send({ email: 'resetme@example.com' })
+    );
+    expect(token).toBeTruthy();
+
+    const reset = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'newpassword1' });
+    expect(reset.status).toBe(200);
+    expect(reset.headers['set-cookie'][0]).toMatch(/^token=/);
+
+    const oldLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'resetme@example.com', password: 'oldpassword1' });
+    expect(oldLogin.status).toBe(401);
+
+    const newLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'resetme@example.com', password: 'newpassword1' });
+    expect(newLogin.status).toBe(200);
+  });
+
+  it('rejects an invalid token and a reused token', async () => {
+    const bad = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: 'not-a-real-token', password: 'newpassword1' });
+    expect(bad.status).toBe(400);
+
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Reuse', email: 'reuse@example.com', password: 'oldpassword1' });
+    const { token } = await captureResetToken(() =>
+      request(app).post('/api/auth/forgot-password').send({ email: 'reuse@example.com' })
+    );
+
+    const first = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'newpassword1' });
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'anotherpassword1' });
+    expect(second.status).toBe(400);
   });
 });

@@ -558,9 +558,48 @@
       </div>
       <div class="error-text" id="loginError" style="display:none;">Hibás email vagy jelszó.</div>
       <div class="hint-text">Nincs még fiókod? <button type="button" class="remove-link" id="goToRegisterBtn" style="padding:0;">Regisztrálj</button></div>
+      <div class="hint-text"><button type="button" class="remove-link" id="goToForgotBtn" style="padding:0;">Elfelejtett jelszó?</button></div>
       <div class="modal-actions">
         <button class="btn-ghost" data-close="loginOverlay">Mégse</button>
         <button class="btn-primary" id="loginSubmit">Bejelentkezés</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ELFELEJTETT JELSZÓ -->
+<div class="overlay" id="forgotPasswordOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>Elfelejtett jelszó</h3><button class="modal-close" data-close="forgotPasswordOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="form-field full">
+        <label>Email</label>
+        <input type="email" id="forgotEmail" autocomplete="username">
+      </div>
+      <div class="error-text" id="forgotError" style="display:none;"></div>
+      <div class="hint-text" id="forgotSuccess" style="display:none;"></div>
+      <div class="hint-text">Vissza a <button type="button" class="remove-link" id="forgotToLoginBtn" style="padding:0;">bejelentkezéshez</button></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close="forgotPasswordOverlay">Mégse</button>
+        <button class="btn-primary" id="forgotSubmit">Link küldése</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ÚJ JELSZÓ MEGADÁSA -->
+<div class="overlay" id="resetPasswordOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>Új jelszó megadása</h3><button class="modal-close" data-close="resetPasswordOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="form-field full">
+        <label>Új jelszó</label>
+        <input type="password" id="resetPassword" autocomplete="new-password">
+      </div>
+      <div class="error-text" id="resetError" style="display:none;"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close="resetPasswordOverlay">Mégse</button>
+        <button class="btn-primary" id="resetSubmit">Jelszó beállítása</button>
       </div>
     </div>
   </div>
@@ -1213,6 +1252,64 @@ document.getElementById('goToLoginBtn').addEventListener('click', ()=>{
   openOverlay('loginOverlay');
 });
 
+document.getElementById('goToForgotBtn').addEventListener('click', ()=>{
+  closeOverlay('loginOverlay');
+  document.getElementById('forgotError').style.display='none';
+  document.getElementById('forgotSuccess').style.display='none';
+  openOverlay('forgotPasswordOverlay');
+});
+document.getElementById('forgotToLoginBtn').addEventListener('click', ()=>{
+  closeOverlay('forgotPasswordOverlay');
+  openOverlay('loginOverlay');
+});
+
+document.getElementById('forgotSubmit').addEventListener('click', async ()=>{
+  const email = document.getElementById('forgotEmail').value.trim();
+  const errEl = document.getElementById('forgotError');
+  const successEl = document.getElementById('forgotSuccess');
+  errEl.style.display='none';
+  successEl.style.display='none';
+  if(!email){
+    errEl.textContent = 'Add meg az emailedet.';
+    errEl.style.display='block';
+    return;
+  }
+  try{
+    const data = await apiJson('/auth/forgot-password', 'POST', { email });
+    successEl.textContent = data.message + ' (Fejlesztői módban a linket a szerver konzoljában találod, e-mail küldés nincs beállítva.)';
+    successEl.style.display='block';
+    document.getElementById('forgotEmail').value='';
+  }catch(e){
+    errEl.textContent = e.message || 'Nem sikerült elküldeni a kérést.';
+    errEl.style.display='block';
+  }
+});
+
+let resetToken = null;
+
+document.getElementById('resetSubmit').addEventListener('click', async ()=>{
+  const password = document.getElementById('resetPassword').value;
+  const errEl = document.getElementById('resetError');
+  if(!password || password.length < 8){
+    errEl.textContent = 'A jelszó legalább 8 karakter legyen.';
+    errEl.style.display='block';
+    return;
+  }
+  try{
+    const data = await apiJson('/auth/reset-password', 'POST', { token: resetToken, password });
+    currentUser = data.user;
+    isAdmin = data.user.role === 'admin';
+    document.getElementById('resetPassword').value='';
+    errEl.style.display='none';
+    closeOverlay('resetPasswordOverlay');
+    resetToken = null;
+    await afterAuthSuccess();
+  }catch(e){
+    errEl.textContent = e.message || 'Nem sikerült beállítani az új jelszót. A link lehet, hogy lejárt.';
+    errEl.style.display='block';
+  }
+});
+
 async function afterAuthSuccess(){
   updateAccountUI();
   renderGrid();
@@ -1792,6 +1889,18 @@ document.getElementById('contactSave').addEventListener('click', async ()=>{
 });
 
 /* ---------- INDÍTÁS ---------- */
+function checkResetTokenInUrl(){
+  const params = new URLSearchParams(location.search);
+  const token = params.get('resetToken');
+  if(!token) return;
+  resetToken = token;
+  document.getElementById('resetError').style.display='none';
+  openOverlay('resetPasswordOverlay');
+  params.delete('resetToken');
+  const query = params.toString();
+  history.replaceState(null, '', location.pathname + (query ? `?${query}` : ''));
+}
+
 (async function init(){
   await checkSession();
   await loadProducts();
@@ -1804,6 +1913,7 @@ document.getElementById('contactSave').addEventListener('click', async ()=>{
   renderCartCount();
   renderShopIntro();
   renderPageNav();
+  checkResetTokenInUrl();
 })();
 </script>
 </body>
