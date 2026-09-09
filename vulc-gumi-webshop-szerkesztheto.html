@@ -306,6 +306,7 @@
     <span>Admin munkamenet — a készleten történő módosítások mindenki számára láthatók, aki megnyitja ezt a boltot.</span>
     <span>
       <button id="manageBtn">Készlet kezelése</button>
+      <button id="ordersBtn">Rendelések</button>
       <button id="uploadExcelBtn">Excel feltöltése</button>
       <button id="createAdminBtn">Admin létrehozása</button>
     </span>
@@ -481,7 +482,7 @@
 
 <footer>
   <div class="wrap">
-    <div>gumipont.hu — egy demó gumibolt.</div>
+    <div>gumipont.hu</div>
     <div>A méretek, árak és készletadatok ehhez a bolthoz tartoznak, és mindenki látja, aki megnyitja.</div>
   </div>
 </footer>
@@ -495,6 +496,41 @@
       <div id="cartEmpty" style="display:none;color:var(--graphite);font-size:14px;">A kosarad üres.</div>
       <div class="cart-total-row" id="cartTotalRow" style="display:none;">
         <span>Összesen</span><span id="cartTotal"></span>
+      </div>
+
+      <div id="checkoutSection" style="display:none;">
+        <div class="form-grid" style="margin-top:18px;">
+          <div class="form-field">
+            <label>Szállítási mód</label>
+            <select id="checkoutDelivery">
+              <option value="courier">Futárral (15 €)</option>
+              <option value="pickup">Személyes átvétel (ingyenes)</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Fizetési mód</label>
+            <select id="checkoutPayment">
+              <option value="card">Bankkártya</option>
+              <option value="transfer">Átutalás</option>
+              <option value="cash">Készpénz</option>
+            </select>
+          </div>
+        </div>
+        <div class="cart-total-row" style="font-size:14px;font-weight:400;padding-top:14px;">
+          <span>Szállítás</span><span id="checkoutShipping"></span>
+        </div>
+        <div class="cart-total-row">
+          <span>Fizetendő</span><span id="checkoutGrandTotal"></span>
+        </div>
+        <div class="error-text" id="checkoutError" style="display:none;"></div>
+        <div class="modal-actions">
+          <button class="btn-primary" id="checkoutSubmit" style="width:100%;">Megrendelés leadása</button>
+        </div>
+      </div>
+
+      <div id="checkoutSuccess" style="display:none;text-align:center;padding:16px 0 4px;">
+        <h3 style="margin-bottom:8px;">Köszönjük a rendelést!</h3>
+        <p id="checkoutSuccessMsg" style="color:var(--graphite);font-size:14px;"></p>
       </div>
     </div>
   </div>
@@ -587,6 +623,20 @@
         <thead><tr><th>Márka</th><th>Típus</th><th>Méret</th><th>Évszak</th><th>Ár</th><th>Készlet</th><th></th></tr></thead>
         <tbody id="adminTableBody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- RENDELÉSEK -->
+<div class="overlay" id="ordersOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h3>Rendelések</h3><button class="modal-close" data-close="ordersOverlay">×</button></div>
+    <div class="modal-body">
+      <table class="admin-table">
+        <thead><tr><th>ID</th><th>Dátum</th><th>Tételek</th><th>Szállítás</th><th>Fizetés</th><th>Összeg</th><th>Státusz</th></tr></thead>
+        <tbody id="ordersTableBody"></tbody>
+      </table>
+      <div class="hint-text" id="ordersEmpty" style="display:none;">Még nem érkezett rendelés.</div>
     </div>
   </div>
 </div>
@@ -1003,11 +1053,18 @@ function renderCart(){
   const container = document.getElementById('cartItems');
   const empty = document.getElementById('cartEmpty');
   const totalRow = document.getElementById('cartTotalRow');
+  const checkoutSection = document.getElementById('checkoutSection');
+
+  document.getElementById('checkoutSuccess').style.display = 'none';
+  document.getElementById('checkoutError').style.display = 'none';
+
   if(cart.length===0){
     container.innerHTML=''; empty.style.display='block'; totalRow.style.display='none';
+    checkoutSection.style.display='none';
     return;
   }
-  empty.style.display='none'; totalRow.style.display='flex';
+  empty.style.display='none'; totalRow.style.display='flex'; checkoutSection.style.display='block';
+  container.style.display='block'; totalRow.style.display='flex';
   let total=0;
   container.innerHTML = cart.map(c=>{
     const p = products.find(pp=>pp.id===c.id);
@@ -1031,7 +1088,62 @@ function renderCart(){
   container.querySelectorAll('.qty-inc').forEach(b=>b.addEventListener('click', ()=>changeQty(b.dataset.id,1)));
   container.querySelectorAll('.qty-dec').forEach(b=>b.addEventListener('click', ()=>changeQty(b.dataset.id,-1)));
   container.querySelectorAll('.remove-link').forEach(b=>b.addEventListener('click', ()=>removeFromCart(b.dataset.id)));
+  updateCheckoutTotals();
 }
+
+function shippingCostFor(deliveryMethod){
+  return deliveryMethod === 'pickup' ? 0 : 15;
+}
+
+function cartSubtotal(){
+  return cart.reduce((sum,c)=>{
+    const p = products.find(pp=>pp.id===c.id);
+    return p ? sum + p.price*c.qty : sum;
+  }, 0);
+}
+
+function updateCheckoutTotals(){
+  const deliveryMethod = document.getElementById('checkoutDelivery').value;
+  const shipping = shippingCostFor(deliveryMethod);
+  document.getElementById('checkoutShipping').textContent = shipping + ' €';
+  document.getElementById('checkoutGrandTotal').textContent = (cartSubtotal()+shipping) + ' €';
+}
+document.getElementById('checkoutDelivery').addEventListener('change', updateCheckoutTotals);
+
+document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('checkoutError');
+  errEl.style.display = 'none';
+  const deliveryMethod = document.getElementById('checkoutDelivery').value;
+  const paymentMethod = document.getElementById('checkoutPayment').value;
+  const items = cart.map(c=>({ productId: Number(c.id), qty: c.qty }));
+
+  let data;
+  try{
+    data = await apiJson('/orders', 'POST', {
+      deliveryMethod, paymentMethod,
+      shippingCost: shippingCostFor(deliveryMethod),
+      items,
+    });
+  }catch(e){
+    errEl.textContent = e.message || 'Nem sikerült leadni a rendelést.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  cart = [];
+  saveCart();
+  renderCartCount();
+  await loadProducts();
+  populateSpecDropdowns();
+  populateBrandFilters();
+  renderGrid();
+
+  document.getElementById('cartItems').style.display='none';
+  document.getElementById('cartTotalRow').style.display='none';
+  document.getElementById('checkoutSection').style.display='none';
+  document.getElementById('checkoutSuccessMsg').textContent = `Rendelésszám: #${data.order.id} — fizetendő ${data.order.total} €.`;
+  document.getElementById('checkoutSuccess').style.display='block';
+});
 document.getElementById('cartBtn').addEventListener('click', ()=>{ renderCart(); openOverlay('cartOverlay'); });
 
 /* ---------- OVERLAY SEGÉDEK ---------- */
@@ -1156,6 +1268,48 @@ function renderAdminTable(){
     </tr>`).join('');
   tbody.querySelectorAll('.edit-row').forEach(b=>b.addEventListener('click', ()=>{ closeOverlay('manageOverlay'); openProductForm(b.dataset.id); }));
   tbody.querySelectorAll('.del-row').forEach(b=>b.addEventListener('click', async ()=>{ await deleteProduct(b.dataset.id); renderAdminTable(); }));
+}
+
+/* ---------- RENDELÉSEK (admin) ---------- */
+function deliveryLabel(m){ return m==='pickup' ? 'Átvétel' : 'Futár'; }
+function paymentLabel(m){ return m==='card' ? 'Kártya' : m==='transfer' ? 'Átutalás' : 'Készpénz'; }
+function orderStatusLabel(s){
+  return { new:'Új', confirmed:'Visszaigazolva', shipped:'Kiszállítva', done:'Lezárva' }[s] || s;
+}
+
+document.getElementById('ordersBtn').addEventListener('click', async ()=>{
+  openOverlay('ordersOverlay');
+  await renderOrdersTable();
+});
+
+async function renderOrdersTable(){
+  const tbody = document.getElementById('ordersTableBody');
+  const emptyEl = document.getElementById('ordersEmpty');
+  let orders;
+  try{
+    const data = await apiFetch('/orders');
+    orders = data.orders;
+  }catch(e){
+    tbody.innerHTML = '';
+    emptyEl.textContent = 'Nem sikerült betölteni a rendeléseket: ' + e.message;
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = orders.length ? 'none' : 'block';
+  emptyEl.textContent = 'Még nem érkezett rendelés.';
+  tbody.innerHTML = orders.map(o=>{
+    const itemsText = (o.items||[]).map(it=>`${it.brand||'?'} ${it.model||''} ×${it.qty}`).join(', ') || '—';
+    const date = new Date(o.created_at).toLocaleString('hu-HU');
+    return `<tr>
+      <td class="mono">#${o.id}</td>
+      <td class="mono">${date}</td>
+      <td>${itemsText}</td>
+      <td>${deliveryLabel(o.delivery_method)}</td>
+      <td>${paymentLabel(o.payment_method)}</td>
+      <td>${o.total} €</td>
+      <td>${orderStatusLabel(o.status)}</td>
+    </tr>`;
+  }).join('');
 }
 
 // A termékkép mostantól valódi fájlként (multipart/form-data) megy fel a

@@ -70,16 +70,41 @@ router.post('/', optionalAuth, (req, res) => {
   res.status(201).json({ order, items: orderItems });
 });
 
+function attachItems(orders) {
+  if (orders.length === 0) return orders;
+  const placeholders = orders.map(() => '?').join(',');
+  const rows = db
+    .prepare(
+      `SELECT oi.order_id, oi.qty, oi.unit_price, p.brand, p.model
+       FROM order_items oi
+       LEFT JOIN products p ON p.id = oi.product_id
+       WHERE oi.order_id IN (${placeholders})`
+    )
+    .all(...orders.map((o) => o.id));
+
+  const byOrder = new Map();
+  for (const row of rows) {
+    if (!byOrder.has(row.order_id)) byOrder.set(row.order_id, []);
+    byOrder.get(row.order_id).push({
+      brand: row.brand,
+      model: row.model,
+      qty: row.qty,
+      unitPrice: row.unit_price,
+    });
+  }
+  return orders.map((o) => ({ ...o, items: byOrder.get(o.id) || [] }));
+}
+
 router.get('/', requireAdmin, (req, res) => {
   const orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
-  res.json({ orders });
+  res.json({ orders: attachItems(orders) });
 });
 
 router.get('/mine', requireAuth, (req, res) => {
   const orders = db
     .prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC')
     .all(req.user.id);
-  res.json({ orders });
+  res.json({ orders: attachItems(orders) });
 });
 
 export default router;
