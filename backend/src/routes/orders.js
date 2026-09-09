@@ -5,20 +5,29 @@ import { requireAdmin, requireAuth, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-const orderSchema = z.object({
-  deliveryMethod: z.enum(['courier', 'pickup']),
-  paymentMethod: z.enum(['card', 'transfer', 'cash']),
-  discount: z.coerce.number().nonnegative().default(0),
-  shippingCost: z.coerce.number().nonnegative().default(0),
-  items: z
-    .array(
-      z.object({
-        productId: z.coerce.number().int().positive(),
-        qty: z.coerce.number().int().positive(),
-      })
-    )
-    .min(1),
-});
+const orderSchema = z
+  .object({
+    customerName: z.string().trim().min(1).max(200),
+    customerEmail: z.string().trim().toLowerCase().email(),
+    customerPhone: z.string().trim().min(1).max(50),
+    shippingAddress: z.string().trim().max(500).optional().default(''),
+    deliveryMethod: z.enum(['courier', 'pickup']),
+    paymentMethod: z.enum(['card', 'transfer', 'cash']),
+    discount: z.coerce.number().nonnegative().default(0),
+    shippingCost: z.coerce.number().nonnegative().default(0),
+    items: z
+      .array(
+        z.object({
+          productId: z.coerce.number().int().positive(),
+          qty: z.coerce.number().int().positive(),
+        })
+      )
+      .min(1),
+  })
+  .refine((data) => data.deliveryMethod !== 'courier' || data.shippingAddress.length > 0, {
+    message: 'Szállítási cím megadása kötelező futáros kiszállításnál.',
+    path: ['shippingAddress'],
+  });
 
 // Orders can be placed without being logged in (guest checkout), so this
 // route only reads the session if one is present rather than requiring it.
@@ -27,7 +36,17 @@ router.post('/', optionalAuth, (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   }
-  const { deliveryMethod, paymentMethod, discount, shippingCost, items } = parsed.data;
+  const {
+    customerName,
+    customerEmail,
+    customerPhone,
+    shippingAddress,
+    deliveryMethod,
+    paymentMethod,
+    discount,
+    shippingCost,
+    items,
+  } = parsed.data;
 
   const getProduct = db.prepare('SELECT * FROM products WHERE id = ?');
   let resolved;
@@ -48,10 +67,26 @@ router.post('/', optionalAuth, (req, res) => {
   const placeOrder = db.transaction(() => {
     const info = db
       .prepare(
-        `INSERT INTO orders (user_id, status, delivery_method, payment_method, subtotal, discount, shipping_cost, total)
-         VALUES (?, 'new', ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO orders (
+           user_id, status, delivery_method, payment_method,
+           customer_name, customer_email, customer_phone, shipping_address,
+           subtotal, discount, shipping_cost, total
+         )
+         VALUES (?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(req.user?.id ?? null, deliveryMethod, paymentMethod, subtotal, discount, shippingCost, total);
+      .run(
+        req.user?.id ?? null,
+        deliveryMethod,
+        paymentMethod,
+        customerName,
+        customerEmail,
+        customerPhone,
+        shippingAddress,
+        subtotal,
+        discount,
+        shippingCost,
+        total
+      );
 
     const insertItem = db.prepare(
       'INSERT INTO order_items (order_id, product_id, qty, unit_price) VALUES (?, ?, ?, ?)'

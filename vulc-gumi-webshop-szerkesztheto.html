@@ -500,6 +500,9 @@
 
       <div id="checkoutSection" style="display:none;">
         <div class="form-grid" style="margin-top:18px;">
+          <div class="form-field full"><label>Név</label><input id="checkoutName" autocomplete="name"></div>
+          <div class="form-field"><label>Email</label><input type="email" id="checkoutEmail" autocomplete="email"></div>
+          <div class="form-field"><label>Telefon</label><input type="tel" id="checkoutPhone" autocomplete="tel"></div>
           <div class="form-field">
             <label>Szállítási mód</label>
             <select id="checkoutDelivery">
@@ -514,6 +517,10 @@
               <option value="transfer">Átutalás</option>
               <option value="cash">Készpénz</option>
             </select>
+          </div>
+          <div class="form-field full" id="checkoutAddressField">
+            <label>Szállítási cím</label>
+            <input id="checkoutAddress" placeholder="Irányítószám, város, utca, házszám" autocomplete="street-address">
           </div>
         </div>
         <div class="cart-total-row" style="font-size:14px;font-weight:400;padding-top:14px;">
@@ -632,10 +639,15 @@
   <div class="modal wide">
     <div class="modal-head"><h3>Rendelések</h3><button class="modal-close" data-close="ordersOverlay">×</button></div>
     <div class="modal-body">
-      <table class="admin-table">
-        <thead><tr><th>ID</th><th>Dátum</th><th>Tételek</th><th>Szállítás</th><th>Fizetés</th><th>Összeg</th><th>Státusz</th></tr></thead>
-        <tbody id="ordersTableBody"></tbody>
-      </table>
+      <div style="overflow-x:auto;">
+        <table class="admin-table">
+          <thead><tr>
+            <th>ID</th><th>Dátum</th><th>Vevő</th><th>Elérhetőség</th><th>Cím</th>
+            <th>Tételek</th><th>Mód</th><th>Összeg</th><th>Státusz</th>
+          </tr></thead>
+          <tbody id="ordersTableBody"></tbody>
+        </table>
+      </div>
       <div class="hint-text" id="ordersEmpty" style="display:none;">Még nem érkezett rendelés.</div>
     </div>
   </div>
@@ -793,6 +805,16 @@ function apiForm(path, method, formData){
 function resolveImageUrl(path){
   if(!path) return null;
   return path.startsWith('http') ? path : API_ORIGIN + path;
+}
+
+// Orders (and their customer name/email/phone/address) can be submitted by
+// anyone, including anonymous guests — always escape them before dropping
+// into innerHTML in the admin orders view, or a crafted order becomes
+// stored XSS against an admin session.
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
 }
 
 let products = [];
@@ -1065,6 +1087,12 @@ function renderCart(){
   }
   empty.style.display='none'; totalRow.style.display='flex'; checkoutSection.style.display='block';
   container.style.display='block'; totalRow.style.display='flex';
+  if(currentUser){
+    const nameEl = document.getElementById('checkoutName');
+    const emailEl = document.getElementById('checkoutEmail');
+    if(!nameEl.value) nameEl.value = currentUser.name;
+    if(!emailEl.value) emailEl.value = currentUser.email;
+  }
   let total=0;
   container.innerHTML = cart.map(c=>{
     const p = products.find(pp=>pp.id===c.id);
@@ -1107,19 +1135,37 @@ function updateCheckoutTotals(){
   const shipping = shippingCostFor(deliveryMethod);
   document.getElementById('checkoutShipping').textContent = shipping + ' €';
   document.getElementById('checkoutGrandTotal').textContent = (cartSubtotal()+shipping) + ' €';
+  document.getElementById('checkoutAddressField').style.display = deliveryMethod === 'courier' ? 'block' : 'none';
 }
 document.getElementById('checkoutDelivery').addEventListener('change', updateCheckoutTotals);
 
 document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
   const errEl = document.getElementById('checkoutError');
   errEl.style.display = 'none';
+  const customerName = document.getElementById('checkoutName').value.trim();
+  const customerEmail = document.getElementById('checkoutEmail').value.trim();
+  const customerPhone = document.getElementById('checkoutPhone').value.trim();
   const deliveryMethod = document.getElementById('checkoutDelivery').value;
   const paymentMethod = document.getElementById('checkoutPayment').value;
+  const shippingAddress = document.getElementById('checkoutAddress').value.trim();
+
+  if(!customerName || !customerEmail || !customerPhone){
+    errEl.textContent = 'Add meg a neved, emailed és telefonszámod.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(deliveryMethod === 'courier' && !shippingAddress){
+    errEl.textContent = 'Futáros kiszállításhoz add meg a szállítási címet.';
+    errEl.style.display = 'block';
+    return;
+  }
+
   const items = cart.map(c=>({ productId: Number(c.id), qty: c.qty }));
 
   let data;
   try{
     data = await apiJson('/orders', 'POST', {
+      customerName, customerEmail, customerPhone, shippingAddress,
       deliveryMethod, paymentMethod,
       shippingCost: shippingCostFor(deliveryMethod),
       items,
@@ -1138,6 +1184,9 @@ document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
   populateBrandFilters();
   renderGrid();
 
+  document.getElementById('checkoutName').value='';
+  document.getElementById('checkoutPhone').value='';
+  document.getElementById('checkoutAddress').value='';
   document.getElementById('cartItems').style.display='none';
   document.getElementById('cartTotalRow').style.display='none';
   document.getElementById('checkoutSection').style.display='none';
@@ -1298,14 +1347,19 @@ async function renderOrdersTable(){
   emptyEl.style.display = orders.length ? 'none' : 'block';
   emptyEl.textContent = 'Még nem érkezett rendelés.';
   tbody.innerHTML = orders.map(o=>{
-    const itemsText = (o.items||[]).map(it=>`${it.brand||'?'} ${it.model||''} ×${it.qty}`).join(', ') || '—';
+    const itemsText = (o.items||[])
+      .map(it=>`${escapeHtml(it.brand||'?')} ${escapeHtml(it.model||'')} ×${it.qty}`)
+      .join(', ') || '—';
     const date = new Date(o.created_at).toLocaleString('hu-HU');
+    const contact = [escapeHtml(o.customer_email), escapeHtml(o.customer_phone)].filter(Boolean).join('<br>');
     return `<tr>
       <td class="mono">#${o.id}</td>
       <td class="mono">${date}</td>
+      <td>${escapeHtml(o.customer_name) || '—'}</td>
+      <td>${contact || '—'}</td>
+      <td>${escapeHtml(o.shipping_address) || '—'}</td>
       <td>${itemsText}</td>
-      <td>${deliveryLabel(o.delivery_method)}</td>
-      <td>${paymentLabel(o.payment_method)}</td>
+      <td>${deliveryLabel(o.delivery_method)} / ${paymentLabel(o.payment_method)}</td>
       <td>${o.total} €</td>
       <td>${orderStatusLabel(o.status)}</td>
     </tr>`;

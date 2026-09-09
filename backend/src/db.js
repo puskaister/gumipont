@@ -39,16 +39,20 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS orders (
-  id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id          INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
-  status           TEXT NOT NULL CHECK(status IN ('new','confirmed','shipped','done')) DEFAULT 'new',
-  delivery_method  TEXT NOT NULL CHECK(delivery_method IN ('courier','pickup')),
-  payment_method   TEXT NOT NULL CHECK(payment_method IN ('card','transfer','cash')),
-  subtotal         REAL NOT NULL,
-  discount         REAL NOT NULL DEFAULT 0,
-  shipping_cost    REAL NOT NULL DEFAULT 0,
-  total            REAL NOT NULL,
-  created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id           INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+  status            TEXT NOT NULL CHECK(status IN ('new','confirmed','shipped','done')) DEFAULT 'new',
+  delivery_method   TEXT NOT NULL CHECK(delivery_method IN ('courier','pickup')),
+  payment_method    TEXT NOT NULL CHECK(payment_method IN ('card','transfer','cash')),
+  customer_name     TEXT NOT NULL DEFAULT '',
+  customer_email    TEXT NOT NULL DEFAULT '',
+  customer_phone    TEXT NOT NULL DEFAULT '',
+  shipping_address  TEXT NOT NULL DEFAULT '',
+  subtotal          REAL NOT NULL,
+  discount          REAL NOT NULL DEFAULT 0,
+  shipping_cost     REAL NOT NULL DEFAULT 0,
+  total             REAL NOT NULL,
+  created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
@@ -75,5 +79,19 @@ CREATE TABLE IF NOT EXISTS site_content (
   value  TEXT NOT NULL
 );
 `);
+
+// Adds columns to tables that already existed before this field was
+// introduced (CREATE TABLE IF NOT EXISTS above only helps brand-new DBs).
+function ensureColumn(table, column, ddl) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  }
+}
+
+ensureColumn('orders', 'customer_name', "customer_name TEXT NOT NULL DEFAULT ''");
+ensureColumn('orders', 'customer_email', "customer_email TEXT NOT NULL DEFAULT ''");
+ensureColumn('orders', 'customer_phone', "customer_phone TEXT NOT NULL DEFAULT ''");
+ensureColumn('orders', 'shipping_address', "shipping_address TEXT NOT NULL DEFAULT ''");
 
 export default db;
