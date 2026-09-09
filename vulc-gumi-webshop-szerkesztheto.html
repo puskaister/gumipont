@@ -307,6 +307,7 @@
     <span>
       <button id="manageBtn">Készlet kezelése</button>
       <button id="ordersBtn">Rendelések</button>
+      <button id="settingsBtn">Beállítások</button>
       <button id="uploadExcelBtn">Excel feltöltése</button>
       <button id="createAdminBtn">Admin létrehozása</button>
     </span>
@@ -480,6 +481,16 @@
   </div>
 </div>
 
+<div id="termsView" style="display:none;">
+  <div class="wrap content-wrap">
+    <div class="results-head">
+      <h3>Vásárlási feltételek</h3>
+      <button class="btn-ghost" id="termsEditBtn" style="display:none;">Szerkesztés</button>
+    </div>
+    <div class="about-text" id="termsText"></div>
+  </div>
+</div>
+
 <footer>
   <div class="wrap">
     <div>gumipont.hu</div>
@@ -506,8 +517,8 @@
           <div class="form-field">
             <label>Szállítási mód</label>
             <select id="checkoutDelivery">
-              <option value="courier">Futárral (15 €)</option>
-              <option value="pickup">Személyes átvétel (ingyenes)</option>
+              <option value="courier">Futárral</option>
+              <option value="pickup">Személyes átvétel</option>
             </select>
           </div>
           <div class="form-field">
@@ -523,8 +534,12 @@
             <input id="checkoutAddress" placeholder="Irányítószám, város, utca, házszám" autocomplete="street-address">
           </div>
         </div>
+        <div class="hint-text" id="bulkDiscountHint" style="display:none;"></div>
         <div class="cart-total-row" style="font-size:14px;font-weight:400;padding-top:14px;">
           <span>Szállítás</span><span id="checkoutShipping"></span>
+        </div>
+        <div class="cart-total-row" id="checkoutDiscountRow" style="font-size:14px;font-weight:400;display:none;">
+          <span>Kedvezmény</span><span id="checkoutDiscount"></span>
         </div>
         <div class="cart-total-row">
           <span>Fizetendő</span><span id="checkoutGrandTotal"></span>
@@ -733,6 +748,50 @@
       <div class="modal-actions">
         <button class="btn-ghost" data-close="productFormOverlay">Mégse</button>
         <button class="btn-primary" id="pfSave">Gumi mentése</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VÁSÁRLÁSI FELTÉTELEK SZERKESZTÉSE -->
+<div class="overlay" id="termsEditOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h3>Vásárlási feltételek szerkesztése</h3><button class="modal-close" data-close="termsEditOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="rte-toolbar" id="termsToolbar">
+        <button type="button" data-cmd="bold"><b>Félkövér</b></button>
+        <button type="button" data-cmd="italic"><i>Dőlt</i></button>
+        <button type="button" data-cmd="formatBlock" data-value="H2">Alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="P">Bekezdés</button>
+        <button type="button" data-cmd="insertUnorderedList">Felsorolás</button>
+        <button type="button" data-cmd="createLink">Link</button>
+      </div>
+      <div class="rte-content" id="termsEditor" contenteditable="true"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close="termsEditOverlay">Mégse</button>
+        <button class="btn-primary" id="termsSave">Mentés</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BEÁLLÍTÁSOK -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>Beállítások</h3><button class="modal-close" data-close="settingsOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="form-field full"><label>Pénznem jele</label><input id="settingsCurrency" placeholder="pl. €, Ft, $"></div>
+      <div class="form-grid" style="margin-top:14px;">
+        <div class="form-field"><label>Szállítási díj — futár</label><input type="number" id="settingsShipCourier" min="0" step="0.01"></div>
+        <div class="form-field"><label>Szállítási díj — átvétel</label><input type="number" id="settingsShipPickup" min="0" step="0.01"></div>
+        <div class="form-field"><label>Tömeges kedvezmény — min. db</label><input type="number" id="settingsBulkQty" min="0" step="1"></div>
+        <div class="form-field"><label>Tömeges kedvezmény — %</label><input type="number" id="settingsBulkPercent" min="0" max="100" step="1"></div>
+      </div>
+      <div class="hint-text" style="margin-top:10px;">A tömeges kedvezmény 0 db / 0% esetén ki van kapcsolva.</div>
+      <div class="error-text" id="settingsError" style="display:none;"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close="settingsOverlay">Mégse</button>
+        <button class="btn-primary" id="settingsSave">Mentés</button>
       </div>
     </div>
   </div>
@@ -1019,7 +1078,7 @@ function renderGrid(){
       <div class="card-specs"><span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span></div>
       <div class="card-bottom">
         <div>
-          <div class="card-price">${p.price} €</div>
+          <div class="card-price">${fmt(p.price)}</div>
           <div class="card-stock ${outOfStock?'low':''}">${outOfStock?'Elfogyott':p.stock+' db készleten'}</div>
         </div>
         <button class="add-btn" data-id="${p.id}" ${outOfStock?'disabled':''}>${outOfStock?'Nem elérhető':'Kosárba'}</button>
@@ -1148,18 +1207,14 @@ function renderCart(){
         </div>
         <button class="remove-link" data-id="${p.id}">Eltávolítás</button>
       </div>
-      <div>${p.price*c.qty} €</div>
+      <div>${fmt(p.price*c.qty)}</div>
     </div>`;
   }).join('');
-  document.getElementById('cartTotal').textContent = total+' €';
+  document.getElementById('cartTotal').textContent = fmt(total);
   container.querySelectorAll('.qty-inc').forEach(b=>b.addEventListener('click', ()=>changeQty(b.dataset.id,1)));
   container.querySelectorAll('.qty-dec').forEach(b=>b.addEventListener('click', ()=>changeQty(b.dataset.id,-1)));
   container.querySelectorAll('.remove-link').forEach(b=>b.addEventListener('click', ()=>removeFromCart(b.dataset.id)));
   updateCheckoutTotals();
-}
-
-function shippingCostFor(deliveryMethod){
-  return deliveryMethod === 'pickup' ? 0 : 15;
 }
 
 function cartSubtotal(){
@@ -1168,13 +1223,40 @@ function cartSubtotal(){
     return p ? sum + p.price*c.qty : sum;
   }, 0);
 }
+function cartQty(){
+  return cart.reduce((sum,c)=>sum+c.qty, 0);
+}
 
 function updateCheckoutTotals(){
   const deliveryMethod = document.getElementById('checkoutDelivery').value;
   const shipping = shippingCostFor(deliveryMethod);
-  document.getElementById('checkoutShipping').textContent = shipping + ' €';
-  document.getElementById('checkoutGrandTotal').textContent = (cartSubtotal()+shipping) + ' €';
+  const subtotal = cartSubtotal();
+  const qty = cartQty();
+  const discount = bulkDiscountFor(qty, subtotal);
+
+  document.getElementById('checkoutShipping').textContent = fmt(shipping);
+
+  const discountRow = document.getElementById('checkoutDiscountRow');
+  if(discount > 0){
+    discountRow.style.display = 'flex';
+    document.getElementById('checkoutDiscount').textContent = '−' + fmt(discount);
+  } else {
+    discountRow.style.display = 'none';
+  }
+
+  document.getElementById('checkoutGrandTotal').textContent = fmt(Math.max(0, subtotal - discount) + shipping);
   document.getElementById('checkoutAddressField').style.display = deliveryMethod === 'courier' ? 'block' : 'none';
+
+  const bulkHint = document.getElementById('bulkDiscountHint');
+  const bd = siteSettings.bulkDiscount;
+  if(bd.minQty > 0 && bd.percent > 0){
+    bulkHint.style.display = 'block';
+    bulkHint.textContent = qty >= bd.minQty
+      ? `Tömeges kedvezmény érvényesítve: ${bd.percent}%.`
+      : `${bd.minQty} db terméktől ${bd.percent}% tömeges kedvezmény jár (még ${bd.minQty - qty} db hiányzik).`;
+  } else {
+    bulkHint.style.display = 'none';
+  }
 }
 document.getElementById('checkoutDelivery').addEventListener('change', updateCheckoutTotals);
 
@@ -1206,7 +1288,6 @@ document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
     data = await apiJson('/orders', 'POST', {
       customerName, customerEmail, customerPhone, shippingAddress,
       deliveryMethod, paymentMethod,
-      shippingCost: shippingCostFor(deliveryMethod),
       items,
     });
   }catch(e){
@@ -1229,7 +1310,7 @@ document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
   document.getElementById('cartItems').style.display='none';
   document.getElementById('cartTotalRow').style.display='none';
   document.getElementById('checkoutSection').style.display='none';
-  document.getElementById('checkoutSuccessMsg').textContent = `Rendelésszám: #${data.order.id} — fizetendő ${data.order.total} €.`;
+  document.getElementById('checkoutSuccessMsg').textContent = `Rendelésszám: #${data.order.id} — fizetendő ${fmt(data.order.total)}.`;
   document.getElementById('checkoutSuccess').style.display='block';
 });
 document.getElementById('cartBtn').addEventListener('click', ()=>{ renderCart(); openOverlay('cartOverlay'); });
@@ -1404,12 +1485,61 @@ document.getElementById('createAdminSubmit').addEventListener('click', async ()=
   alert(`Admin fiók létrehozva: ${email}`);
 });
 
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  document.getElementById('settingsCurrency').value = siteSettings.currency;
+  document.getElementById('settingsShipCourier').value = siteSettings.shipping.courier;
+  document.getElementById('settingsShipPickup').value = siteSettings.shipping.pickup;
+  document.getElementById('settingsBulkQty').value = siteSettings.bulkDiscount.minQty;
+  document.getElementById('settingsBulkPercent').value = siteSettings.bulkDiscount.percent;
+  document.getElementById('settingsError').style.display='none';
+  openOverlay('settingsOverlay');
+});
+
+document.getElementById('settingsSave').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('settingsError');
+  const currency = document.getElementById('settingsCurrency').value.trim();
+  const shipCourier = Number(document.getElementById('settingsShipCourier').value);
+  const shipPickup = Number(document.getElementById('settingsShipPickup').value);
+  const bulkQty = Number(document.getElementById('settingsBulkQty').value);
+  const bulkPercent = Number(document.getElementById('settingsBulkPercent').value);
+
+  if(!currency){
+    errEl.textContent = 'Add meg a pénznem jelét.';
+    errEl.style.display='block';
+    return;
+  }
+  if([shipCourier, shipPickup, bulkQty, bulkPercent].some(n => isNaN(n) || n < 0) || bulkPercent > 100){
+    errEl.textContent = 'A számok nem lehetnek negatívak, a kedvezmény % legfeljebb 100 lehet.';
+    errEl.style.display='block';
+    return;
+  }
+
+  try{
+    await apiJson('/settings', 'PUT', {
+      currency,
+      shipping: { courier: shipCourier, pickup: shipPickup },
+      bulkDiscount: { minQty: bulkQty, percent: bulkPercent },
+    });
+  }catch(e){
+    errEl.textContent = e.message || 'Nem sikerült menteni a beállításokat.';
+    errEl.style.display='block';
+    return;
+  }
+
+  await loadSettings();
+  closeOverlay('settingsOverlay');
+  renderGrid();
+  if(document.getElementById('manageOverlay').classList.contains('open')) renderAdminTable();
+  if(document.getElementById('ordersOverlay').classList.contains('open')) await renderOrdersTable();
+  if(document.getElementById('cartOverlay').classList.contains('open')) renderCart();
+});
+
 function renderAdminTable(){
   const tbody = document.getElementById('adminTableBody');
   tbody.innerHTML = products.map(p=>`
     <tr>
       <td>${p.brand}</td><td>${p.model}</td><td class="mono">${p.width}/${p.profile}R${p.rim}</td>
-      <td>${seasonLabel(p.season)}</td><td>${p.price} €</td><td>${p.stock}</td>
+      <td>${seasonLabel(p.season)}</td><td>${fmt(p.price)}</td><td>${p.stock}</td>
       <td><button class="edit-row" data-id="${p.id}">Szerkesztés</button><button class="del del-row" data-id="${p.id}">Törlés</button></td>
     </tr>`).join('');
   tbody.querySelectorAll('.edit-row').forEach(b=>b.addEventListener('click', ()=>{ closeOverlay('manageOverlay'); openProductForm(b.dataset.id); }));
@@ -1457,7 +1587,7 @@ async function renderOrdersTable(){
       <td>${escapeHtml(o.shipping_address) || '—'}</td>
       <td>${itemsText}</td>
       <td>${deliveryLabel(o.delivery_method)} / ${paymentLabel(o.payment_method)}</td>
-      <td>${o.total} €</td>
+      <td>${fmt(o.total)}</td>
       <td>${orderStatusLabel(o.status)}</td>
     </tr>`;
   }).join('');
@@ -1619,6 +1749,7 @@ function renderPageNav(){
   let html = `<button class="page-tab ${activePageId==='shop'?'active':''}" data-page="shop">Webshop</button>`;
   html += `<button class="page-tab ${activePageId==='rolunk'?'active':''}" data-page="rolunk">Rólunk</button>`;
   html += `<button class="page-tab ${activePageId==='elerhetosegek'?'active':''}" data-page="elerhetosegek">Elérhetőségeink</button>`;
+  html += `<button class="page-tab ${activePageId==='feltetelek'?'active':''}" data-page="feltetelek">Vásárlási feltételek</button>`;
   html += pages.map(pg => `
     <button class="page-tab ${activePageId===pg.id?'active':''}" data-page="${pg.id}">
       ${pg.title}
@@ -1654,6 +1785,7 @@ function hideAllViews(){
   document.getElementById('excelView').style.display='none';
   document.getElementById('aboutView').style.display='none';
   document.getElementById('contactView').style.display='none';
+  document.getElementById('termsView').style.display='none';
 }
 
 function switchPage(pageId){
@@ -1669,6 +1801,9 @@ function switchPage(pageId){
   } else if(pageId==='elerhetosegek'){
     document.getElementById('contactView').style.display='block';
     renderContact();
+  } else if(pageId==='feltetelek'){
+    document.getElementById('termsView').style.display='block';
+    renderTerms();
   } else {
     document.getElementById('excelView').style.display='block';
     renderExcelPage(pageId);
@@ -1716,13 +1851,14 @@ const DEFAULT_SHOP_INTRO = `<div class="hero-eyebrow">EGY BOLT, EGY KÓD KÖRÜL
 <h1 class="hero-title">Olvasd le<br>az oldalfalat.<br>Találd meg<br>a méretet.</h1>
 <p class="hero-sub">Minden gumin ott van a három szám, ami valójában számít. Keress ez alapján, ne találgatás alapján — így soha többé nem rendelsz rossz méretet.</p>`;
 const DEFAULT_ABOUT = `<p>A gumipont.hu egy modern, méret alapú gumibolt. Nálunk nem kell találgatni: megadod a szélességet, a profilt és a felnőméretet, mi pedig megmutatjuk, mi illik rá az autódra. A készletünket folyamatosan frissítjük, az árak és a raktárkészlet mindig aktuálisak.</p>`;
+const DEFAULT_TERMS = `<p>Ez a bekezdés a vásárlási feltételek helyőrzője — admin bejelentkezés után a "Szerkesztés" gombbal írhatod át a tényleges, jogilag érvényes feltételekre (elállási jog, garancia, fizetési és szállítási feltételek stb.).</p>`;
 const DEFAULT_CONTACT = {
   address: '1052 Budapest, Váci utca 12.',
   phone: '+36 1 234 5678',
   email: 'info@gumipont.hu',
   note: ''
 };
-let siteContent = { shopIntro: DEFAULT_SHOP_INTRO, about: DEFAULT_ABOUT, contact: {...DEFAULT_CONTACT} };
+let siteContent = { shopIntro: DEFAULT_SHOP_INTRO, about: DEFAULT_ABOUT, terms: DEFAULT_TERMS, contact: {...DEFAULT_CONTACT} };
 
 async function loadContent(){
   try{
@@ -1731,11 +1867,51 @@ async function loadContent(){
     siteContent = {
       shopIntro: c.shop_intro ?? DEFAULT_SHOP_INTRO,
       about: c.about ?? DEFAULT_ABOUT,
+      terms: c.terms ?? DEFAULT_TERMS,
       contact: c.contact ?? {...DEFAULT_CONTACT},
     };
   }catch(e){
     console.error('Nem sikerült betölteni a tartalmat:', e);
   }
+}
+
+/* ---------- BEÁLLÍTÁSOK (pénznem, szállítás, tömeges kedvezmény) ---------- */
+const DEFAULT_SETTINGS = {
+  currency: '€',
+  shipping: { courier: 15, pickup: 0 },
+  bulkDiscount: { minQty: 0, percent: 0 },
+};
+let siteSettings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+
+async function loadSettings(){
+  try{
+    const data = await apiFetch('/settings');
+    const s = data.settings || {};
+    siteSettings = {
+      currency: s.currency ?? DEFAULT_SETTINGS.currency,
+      shipping: s.shipping ?? {...DEFAULT_SETTINGS.shipping},
+      bulkDiscount: s.bulkDiscount ?? {...DEFAULT_SETTINGS.bulkDiscount},
+    };
+  }catch(e){
+    console.error('Nem sikerült betölteni a beállításokat:', e);
+  }
+}
+
+function fmt(amount){
+  return `${amount} ${siteSettings.currency}`;
+}
+
+function shippingCostFor(deliveryMethod){
+  const s = siteSettings.shipping;
+  return Number(deliveryMethod === 'pickup' ? s.pickup : s.courier) || 0;
+}
+
+function bulkDiscountFor(qty, subtotal){
+  const bd = siteSettings.bulkDiscount;
+  if(bd.minQty > 0 && bd.percent > 0 && qty >= bd.minQty){
+    return Math.round(subtotal * (bd.percent / 100) * 100) / 100;
+  }
+  return 0;
 }
 
 /* ---- Egyszerű, újrahasznosítható szövegszerkesztő (kép feltöltéssel) ---- */
@@ -1800,6 +1976,7 @@ function wireEditor(toolbarId, editorId, imgInputId){
 wireEditor('aboutToolbar', 'aboutEditor', 'aboutImgInput');
 wireEditor('shopIntroToolbar', 'shopIntroEditor', 'shopIntroImgInput');
 wireEditor('contactNoteToolbar', 'contactNoteEditor', 'contactNoteImgInput');
+wireEditor('termsToolbar', 'termsEditor', null);
 
 /* ---- Webshop bevezető ---- */
 function renderShopIntro(){
@@ -1843,6 +2020,28 @@ document.getElementById('aboutSave').addEventListener('click', async ()=>{
   siteContent.about = value;
   renderAbout();
   closeOverlay('aboutEditOverlay');
+});
+
+/* ---- Vásárlási feltételek ---- */
+function renderTerms(){
+  document.getElementById('termsEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
+  document.getElementById('termsText').innerHTML = siteContent.terms;
+}
+document.getElementById('termsEditBtn').addEventListener('click', ()=>{
+  document.getElementById('termsEditor').innerHTML = siteContent.terms;
+  openOverlay('termsEditOverlay');
+});
+document.getElementById('termsSave').addEventListener('click', async ()=>{
+  const value = document.getElementById('termsEditor').innerHTML.trim();
+  try{
+    await apiJson('/content/terms', 'PUT', { value });
+  }catch(e){
+    alert('Nem sikerült menteni: ' + e.message);
+    return;
+  }
+  siteContent.terms = value;
+  renderTerms();
+  closeOverlay('termsEditOverlay');
 });
 
 /* ---- Elérhetőségeink ---- */
@@ -1903,6 +2102,7 @@ function checkResetTokenInUrl(){
 
 (async function init(){
   await checkSession();
+  await loadSettings();
   await loadProducts();
   loadCart();
   await loadPages();

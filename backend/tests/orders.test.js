@@ -45,13 +45,12 @@ describe('orders', () => {
         shippingAddress: '1052 Budapest, Váci utca 12.',
         deliveryMethod: 'courier',
         paymentMethod: 'card',
-        shippingCost: 15,
         items: [{ productId, qty: 2 }],
       });
 
     expect(res.status).toBe(201);
     expect(res.body.order.subtotal).toBe(200);
-    expect(res.body.order.total).toBe(215);
+    expect(res.body.order.total).toBe(215); // default courier shipping fallback: 15
     expect(res.body.order.user_id).toBeNull();
     expect(res.body.order.customer_name).toBe('Teszt Elek');
     expect(res.body.order.shipping_address).toBe('1052 Budapest, Váci utca 12.');
@@ -126,5 +125,69 @@ describe('orders', () => {
   it('rejects listing all orders for a non-admin', async () => {
     const res = await request(app).get('/api/orders');
     expect(res.status).toBe(401);
+  });
+});
+
+describe('order pricing derived from admin settings', () => {
+  it('uses the admin-configured shipping cost per delivery method', async () => {
+    const agent = await adminAgent('settings-admin@example.com');
+    await agent.put('/api/settings').send({ shipping: { courier: 25, pickup: 5 } });
+
+    const productId = insertProduct({ price: 50, stock: 5 });
+    const res = await request(app)
+      .post('/api/orders')
+      .send({
+        ...customer,
+        deliveryMethod: 'pickup',
+        paymentMethod: 'cash',
+        items: [{ productId, qty: 1 }],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.order.shipping_cost).toBe(5);
+    expect(res.body.order.total).toBe(55);
+  });
+
+  it('applies the bulk discount once the quantity threshold is met, not before', async () => {
+    const agent = await adminAgent('bulk-admin@example.com');
+    await agent
+      .put('/api/settings')
+      .send({ shipping: { courier: 0, pickup: 0 }, bulkDiscount: { minQty: 4, percent: 10 } });
+
+    const productId = insertProduct({ price: 100, stock: 10 });
+
+    const below = await request(app)
+      .post('/api/orders')
+      .send({ ...customer, deliveryMethod: 'pickup', paymentMethod: 'cash', items: [{ productId, qty: 3 }] });
+    expect(below.body.order.discount).toBe(0);
+
+    const atThreshold = await request(app)
+      .post('/api/orders')
+      .send({ ...customer, deliveryMethod: 'pickup', paymentMethod: 'cash', items: [{ productId, qty: 4 }] });
+    expect(atThreshold.body.order.subtotal).toBe(400);
+    expect(atThreshold.body.order.discount).toBe(40);
+    expect(atThreshold.body.order.total).toBe(360);
+  });
+
+  it('ignores a client-supplied discount or shippingCost', async () => {
+    const agent = await adminAgent('override-admin@example.com');
+    await agent
+      .put('/api/settings')
+      .send({ shipping: { courier: 0, pickup: 0 }, bulkDiscount: { minQty: 0, percent: 0 } });
+
+    const productId = insertProduct({ price: 100, stock: 5 });
+    const res = await request(app)
+      .post('/api/orders')
+      .send({
+        ...customer,
+        deliveryMethod: 'pickup',
+        paymentMethod: 'cash',
+        discount: 999,
+        shippingCost: 999,
+        items: [{ productId, qty: 1 }],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.order.discount).toBe(0);
+    expect(res.body.order.shipping_cost).toBe(0);
+    expect(res.body.order.total).toBe(100);
   });
 });

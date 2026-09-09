@@ -2,9 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import db from '../db.js';
 import { requireAdmin, requireAuth, optionalAuth } from '../middleware/auth.js';
+import { getSetting } from '../lib/settings.js';
 
 const router = Router();
 
+// Note: no discount/shippingCost fields here — those are derived
+// server-side from admin settings (see below), never trusted from the
+// client, otherwise a guest could submit an arbitrary discount.
 const orderSchema = z
   .object({
     customerName: z.string().trim().min(1).max(200),
@@ -13,8 +17,6 @@ const orderSchema = z
     shippingAddress: z.string().trim().max(500).optional().default(''),
     deliveryMethod: z.enum(['courier', 'pickup']),
     paymentMethod: z.enum(['card', 'transfer', 'cash']),
-    discount: z.coerce.number().nonnegative().default(0),
-    shippingCost: z.coerce.number().nonnegative().default(0),
     items: z
       .array(
         z.object({
@@ -43,8 +45,6 @@ router.post('/', optionalAuth, (req, res) => {
     shippingAddress,
     deliveryMethod,
     paymentMethod,
-    discount,
-    shippingCost,
     items,
   } = parsed.data;
 
@@ -62,6 +62,17 @@ router.post('/', optionalAuth, (req, res) => {
   }
 
   const subtotal = resolved.reduce((sum, item) => sum + item.unitPrice * item.qty, 0);
+
+  const shipping = getSetting('shipping');
+  const shippingCost = Number(deliveryMethod === 'pickup' ? shipping.pickup : shipping.courier) || 0;
+
+  const bulkDiscount = getSetting('bulkDiscount');
+  const totalQty = resolved.reduce((sum, item) => sum + item.qty, 0);
+  const discount =
+    bulkDiscount.minQty > 0 && bulkDiscount.percent > 0 && totalQty >= bulkDiscount.minQty
+      ? Math.round(subtotal * (bulkDiscount.percent / 100) * 100) / 100
+      : 0;
+
   const total = Math.max(0, subtotal - discount) + shippingCost;
 
   const placeOrder = db.transaction(() => {

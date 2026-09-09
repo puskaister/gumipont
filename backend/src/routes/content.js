@@ -3,7 +3,7 @@ import db from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
-const ALLOWED_KEYS = new Set(['shop_intro', 'about', 'contact']);
+const ALLOWED_KEYS = new Set(['shop_intro', 'about', 'contact', 'terms']);
 
 router.get('/', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM site_content').all();
