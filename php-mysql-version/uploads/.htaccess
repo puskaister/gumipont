@@ -1,0 +1,6 @@
+# Feltöltött képek mappája: sose fusson le itt PHP-kód, még akkor sem, ha
+# valaki valahogy .php kiterjesztésű fájlt csempészne be.
+<FilesMatch "\.(php|phtml|php\d|phps)$">
+    Require all denied
+</FilesMatch>
+Options -Indexes

@@ -1,0 +1,45 @@
+<?php
+declare(strict_types=1);
+require __DIR__ . '/../bootstrap.php';
+
+require_method('GET');
+
+$where = [];
+$params = [];
+$types = '';
+
+if (isset($_GET['width']) && $_GET['width'] !== '') { $where[] = 'width = ?'; $params[] = (int) $_GET['width']; $types .= 'i'; }
+if (isset($_GET['profile']) && $_GET['profile'] !== '') { $where[] = 'profile = ?'; $params[] = (int) $_GET['profile']; $types .= 'i'; }
+if (isset($_GET['rim']) && $_GET['rim'] !== '') { $where[] = 'rim = ?'; $params[] = (int) $_GET['rim']; $types .= 'i'; }
+if (isset($_GET['season']) && $_GET['season'] !== '') { $where[] = 'season = ?'; $params[] = (string) $_GET['season']; $types .= 's'; }
+if (isset($_GET['brand']) && $_GET['brand'] !== '') { $where[] = 'brand = ?'; $params[] = (string) $_GET['brand']; $types .= 's'; }
+
+$sql = 'SELECT * FROM products';
+if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
+$sql .= ' ORDER BY id';
+
+$stmt = $mysqli->prepare($sql);
+if ($params) $stmt->bind_param($types, ...$params);
+$stmt->execute();
+$result = $stmt->get_result();
+
+$products = [];
+while ($row = $result->fetch_assoc()) {
+    $products[] = [
+        'id' => (int) $row['id'],
+        'brand' => $row['brand'],
+        'model' => $row['model'],
+        'width' => (int) $row['width'],
+        'profile' => (int) $row['profile'],
+        'rim' => (int) $row['rim'],
+        'season' => $row['season'],
+        'price' => (float) $row['price'],
+        'stock' => (int) $row['stock'],
+        'speed' => $row['speed'],
+        'loadIndex' => $row['load_index'],
+        'image' => $row['image'],
+    ];
+}
+$stmt->close();
+
+respond(['products' => $products]);

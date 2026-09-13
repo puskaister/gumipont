@@ -1,0 +1,4 @@
+api/config.php
+uploads/*
+!uploads/.htaccess
+!uploads/.gitkeep
