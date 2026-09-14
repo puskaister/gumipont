@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-// Feltölti a 12 alap gumi terméket (törli a meglévő termékeket előtte!).
+// Feltölti a 10 alap gumi terméket, mintaadatként (törli a meglévő termékeket előtte!).
 //
 // Parancssorból: php scripts/seed.php
 // Böngészőből (ha nincs SSH-d): nyisd meg egyszer a scripts/seed.php URL-t,
@@ -34,8 +34,6 @@ $products = [
     ['Solmark', 'Track Day', 245, 40, 18, 'summer', 189, 8, 'Y', '97'],
     ['Aerowall', 'Frost Guard', 195, 65, 15, 'winter', 89, 0, 'T', '91'],
     ['Vantis', 'Longhaul Plus', 215, 60, 16, 'all-season', 118, 22, 'H', '95'],
-    ['Nortrek', 'Storm Wide', 245, 45, 18, 'winter', 172, 11, 'V', '100'],
-    ['Halcyon', 'Circuit S', 235, 35, 19, 'summer', 210, 5, 'Y', '92'],
 ];
 
 $mysqli->query('DELETE FROM products');
