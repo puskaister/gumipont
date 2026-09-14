@@ -309,6 +309,7 @@
       <button id="ordersBtn">Rendelések</button>
       <button id="settingsBtn">Beállítások</button>
       <button id="uploadExcelBtn">Excel feltöltése</button>
+      <button id="newPageBtn">Új oldal</button>
       <button id="createAdminBtn">Admin létrehozása</button>
     </span>
   </div>
@@ -435,6 +436,7 @@
   <div class="wrap excel-wrap">
     <div class="results-head">
       <h3 id="excelPageTitle">Feltöltött lap</h3>
+      <button class="btn-ghost" id="pageEditBtn" style="display:none;">Szerkesztés</button>
       <div class="results-count" id="excelMeta"></div>
     </div>
     <div class="excel-sheet-tabs" id="excelSheetTabs" style="display:none;"></div>
@@ -872,6 +874,32 @@
       <div class="modal-actions">
         <button class="btn-ghost" data-close="contactEditOverlay">Mégse</button>
         <button class="btn-primary" id="contactSave">Mentés</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OLDAL LÉTREHOZÁSA / SZERKESZTÉSE -->
+<div class="overlay" id="pageEditOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h3 id="pageEditHeading">Új oldal</h3><button class="modal-close" data-close="pageEditOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="form-field full"><label>Cím</label><input id="pageEditTitle" placeholder="pl. Garancia"></div>
+      <div class="rte-toolbar" id="pageEditToolbar">
+        <button type="button" data-cmd="bold"><b>Félkövér</b></button>
+        <button type="button" data-cmd="italic"><i>Dőlt</i></button>
+        <button type="button" data-cmd="formatBlock" data-value="H2">Alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="P">Bekezdés</button>
+        <button type="button" data-cmd="insertUnorderedList">Felsorolás</button>
+        <button type="button" data-cmd="createLink">Link</button>
+        <button type="button" data-cmd="insertImage">Kép feltöltése</button>
+      </div>
+      <div class="rte-content" id="pageEditEditor" contenteditable="true"></div>
+      <input type="file" accept="image/*" id="pageEditImgInput" style="display:none;">
+      <div class="error-text" id="pageEditError" style="display:none;"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close="pageEditOverlay">Mégse</button>
+        <button class="btn-primary" id="pageEditSave">Mentés</button>
       </div>
     </div>
   </div>
@@ -1822,6 +1850,8 @@ function renderExcelPage(pageId){
   const page = pages.find(p=>p.id===pageId);
   if(!page) return;
   document.getElementById('excelPageTitle').textContent = page.title;
+  document.getElementById('pageEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
+  document.getElementById('pageEditBtn').dataset.pageId = page.id;
   // A szerver egyetlen HTML-blokkot ad vissza (laponként egy fejléccel +
   // táblázattal összefűzve), ezért itt nincs többé kliensoldali lap-váltó.
   document.getElementById('excelSheetTabs').style.display='none';
@@ -1830,6 +1860,57 @@ function renderExcelPage(pageId){
   document.querySelector('.excel-table-scroll').innerHTML =
     (page.content && page.content.trim()) ? page.content : '<div class="excel-empty">Ez az oldal üres.</div>';
 }
+
+/* ---- Új oldal létrehozása / meglévő oldal szerkesztése ---- */
+document.getElementById('newPageBtn').addEventListener('click', ()=>{
+  document.getElementById('pageEditHeading').textContent = 'Új oldal';
+  document.getElementById('pageEditTitle').value = '';
+  document.getElementById('pageEditEditor').innerHTML = '';
+  document.getElementById('pageEditError').style.display = 'none';
+  delete document.getElementById('pageEditSave').dataset.pageId;
+  openOverlay('pageEditOverlay');
+});
+
+document.getElementById('pageEditBtn').addEventListener('click', (e)=>{
+  const page = pages.find(p=>p.id===e.target.dataset.pageId);
+  if(!page) return;
+  document.getElementById('pageEditHeading').textContent = 'Oldal szerkesztése';
+  document.getElementById('pageEditTitle').value = page.title;
+  document.getElementById('pageEditEditor').innerHTML = page.content || '';
+  document.getElementById('pageEditError').style.display = 'none';
+  document.getElementById('pageEditSave').dataset.pageId = page.id;
+  openOverlay('pageEditOverlay');
+});
+
+document.getElementById('pageEditSave').addEventListener('click', async ()=>{
+  const title = document.getElementById('pageEditTitle').value.trim();
+  const errEl = document.getElementById('pageEditError');
+  errEl.style.display = 'none';
+  if(!title){
+    errEl.textContent = 'Adj meg egy címet.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const content = document.getElementById('pageEditEditor').innerHTML.trim();
+  const id = document.getElementById('pageEditSave').dataset.pageId || ('page-' + Date.now());
+  const formData = new FormData();
+  formData.append('id', id);
+  formData.append('title', title);
+  formData.append('content', content);
+  let data;
+  try{
+    data = await apiForm('pages/create.php', 'POST', formData);
+  }catch(e){
+    errEl.textContent = 'Nem sikerült menteni: ' + e.message;
+    errEl.style.display = 'block';
+    return;
+  }
+  const idx = pages.findIndex(p=>p.id===id);
+  if(idx>=0) pages[idx] = data.page; else pages.push(data.page);
+  renderPageNav();
+  switchPage(data.page.id);
+  closeOverlay('pageEditOverlay');
+});
 
 document.getElementById('uploadExcelBtn').addEventListener('click', ()=>{
   document.getElementById('excelFileInput').click();
@@ -1985,6 +2066,7 @@ wireEditor('aboutToolbar', 'aboutEditor', 'aboutImgInput');
 wireEditor('shopIntroToolbar', 'shopIntroEditor', 'shopIntroImgInput');
 wireEditor('contactNoteToolbar', 'contactNoteEditor', 'contactNoteImgInput');
 wireEditor('termsToolbar', 'termsEditor', null);
+wireEditor('pageEditToolbar', 'pageEditEditor', 'pageEditImgInput');
 
 /* ---- Webshop bevezető ---- */
 function renderShopIntro(){
