@@ -19,7 +19,7 @@
     --radius:3px;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden;}
   body{
     background:var(--paper);
     color:var(--ink);
@@ -213,6 +213,7 @@
     color:var(--graphite-light);font-size:14px;line-height:1;padding:0 2px;
   }
   .page-tab .tab-close:hover{color:var(--brake);}
+  .page-nav-toggle{display:none;}
 
   /* EXCEL VIEW */
   .excel-wrap{padding:44px 0 80px;}
@@ -248,6 +249,24 @@
   @media (max-width:700px){
     .contact-grid{grid-template-columns:1fr;}
     .contact-map{height:220px;}
+
+    /* Lapfülek -> hamburger menü mobilon, hogy ne folyjon ki a képernyő
+       széléig egy hosszú, görgethető fülsor (pl. sok feltöltött oldallal). */
+    .page-nav-toggle{
+      display:flex;align-items:center;gap:10px;width:100%;
+      background:var(--paper);border:none;border-bottom:1px solid var(--ink);
+      padding:13px 24px;font-size:14px;font-family:'IBM Plex Mono',monospace;
+      color:var(--ink);text-align:left;
+    }
+    .page-nav-toggle .hb-icon{font-size:17px;line-height:1;}
+    .page-nav{
+      display:none;flex-direction:column;overflow-x:visible;
+    }
+    .page-nav.open{display:flex;}
+    .page-tab{
+      border-right:none;border-bottom:1px solid var(--concrete);
+      padding:14px 24px;width:100%;justify-content:space-between;
+    }
   }
 
   /* SZÖVEGSZERKESZTŐ (RICH TEXT) */
@@ -281,7 +300,10 @@
   }
   @media (max-width:520px){
     .grid{grid-template-columns:1fr;}
-    .head-actions{gap:12px;}
+    .headbar{padding:14px 16px;gap:8px;}
+    .logo{font-size:19px;gap:0;}
+    .logo span{display:none;}
+    .head-actions{gap:10px;font-size:13px;}
     .hero-title{font-size:52px;}
     .hero-tyre-wrap{flex-direction:column;align-items:flex-start;}
   }
@@ -313,6 +335,9 @@
 </div>
 <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
 
+<button class="page-nav-toggle" id="pageNavToggle" aria-expanded="false" aria-controls="pageNav">
+  <span class="hb-icon">☰</span> <span id="pageNavCurrentLabel">Webshop</span>
+</button>
 <nav class="page-nav" id="pageNav">
   <button class="page-tab active" data-page="shop">Webshop</button>
 </nav>
@@ -1496,6 +1521,15 @@ function savePages(){
   try{ localStorage.setItem(PAGES_KEY, JSON.stringify(pages)); }catch(e){}
 }
 
+function pageLabel(id){
+  if(id==='shop') return 'Webshop';
+  if(id==='rolunk') return 'Rólunk';
+  if(id==='elerhetosegek') return 'Elérhetőségeink';
+  if(id==='feltetelek') return 'Vásárlási feltételek';
+  const pg = pages.find(p=>p.id===id);
+  return pg ? pg.title : '';
+}
+
 function renderPageNav(){
   const nav = document.getElementById('pageNav');
   let html = `<button class="page-tab ${activePageId==='shop'?'active':''}" data-page="shop">Webshop</button>`;
@@ -1508,11 +1542,14 @@ function renderPageNav(){
       ${isAdmin?`<span class="tab-close" data-del-page="${pg.id}">×</span>`:''}
     </button>`).join('');
   nav.innerHTML = html;
+  document.getElementById('pageNavCurrentLabel').textContent = pageLabel(activePageId);
 
   nav.querySelectorAll('.page-tab').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       if(e.target.dataset.delPage) return;
       switchPage(btn.dataset.page);
+      nav.classList.remove('open');
+      document.getElementById('pageNavToggle').setAttribute('aria-expanded', 'false');
     });
   });
   nav.querySelectorAll('[data-del-page]').forEach(x=>{
@@ -1526,6 +1563,12 @@ function renderPageNav(){
     });
   });
 }
+
+document.getElementById('pageNavToggle').addEventListener('click', ()=>{
+  const nav = document.getElementById('pageNav');
+  const open = nav.classList.toggle('open');
+  document.getElementById('pageNavToggle').setAttribute('aria-expanded', String(open));
+});
 
 function hideAllViews(){
   document.getElementById('shopView').style.display='none';
