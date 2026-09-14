@@ -223,10 +223,10 @@
     font-size:12px;font-family:'IBM Plex Mono',monospace;border-radius:var(--radius);color:var(--graphite);
   }
   .excel-sheet-tabs button.active{background:var(--ink);color:var(--paper);}
-  .excel-table-scroll{overflow-x:auto;border:1px solid var(--ink);}
-  .excel-table-scroll table{border-collapse:collapse;width:100%;font-size:13px;}
+  .excel-table-scroll{overflow-x:auto;border:1px solid var(--ink);overflow-wrap:anywhere;}
+  .excel-table-scroll table{border-collapse:collapse;width:100%;font-size:13px;table-layout:auto;max-width:100%;}
   .excel-table-scroll td, .excel-table-scroll th{
-    border:1px solid var(--concrete);padding:8px 12px;white-space:nowrap;text-align:left;
+    border:1px solid var(--concrete);padding:8px 12px;text-align:left;overflow-wrap:anywhere;
   }
   .excel-table-scroll thead th{
     background:var(--ink);color:var(--paper);font-family:'IBM Plex Mono',monospace;
