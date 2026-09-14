@@ -1,0 +1,34 @@
+name: Deploy PHP+MySQL verzió FTP-n
+
+# Csak akkor fut, ha a php-mysql-version/ mappában történt változás a main
+# branch-en (a Node backend / statikus verzió módosítása nem indít deploy-t).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'php-mysql-version/**'
+  workflow_dispatch: # kézzel is indítható a GitHub "Actions" fülén
+
+jobs:
+  ftp-deploy:
+    name: FTP feltöltés a tárhelyre
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kód letöltése
+        uses: actions/checkout@v4
+
+      - name: Feltöltés FTP-n
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./php-mysql-version/
+          server-dir: ./www/gumipont.hu/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/api/config.php
+            **/uploads/**
+            **/README.md
