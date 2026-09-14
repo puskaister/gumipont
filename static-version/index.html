@@ -563,6 +563,7 @@
             <input id="checkoutAddress" placeholder="Irányítószám, város, utca, házszám" autocomplete="street-address">
           </div>
         </div>
+        <div class="hint-text" id="cardPaymentHint" style="display:none;">Bankkártyás fizetés jelenleg nem online történik ezen az oldalon — a kártyás fizetésre kiszállításkor/átvételkor vagy előre egyeztetve, telefonon kerül sor.</div>
         <div class="hint-text" id="bulkDiscountHint" style="display:none;"></div>
         <div class="cart-total-row" style="font-size:14px;font-weight:400;padding-top:14px;">
           <span>Szállítás</span><span id="checkoutShipping"></span>
@@ -1195,6 +1196,9 @@ function updateCheckoutTotals(){
   document.getElementById('checkoutGrandTotal').textContent = fmt(Math.max(0, subtotal - discount) + shipping);
   document.getElementById('checkoutAddressField').style.display = deliveryMethod === 'courier' ? 'block' : 'none';
 
+  const paymentMethod = document.getElementById('checkoutPayment').value;
+  document.getElementById('cardPaymentHint').style.display = paymentMethod === 'card' ? 'block' : 'none';
+
   const bulkHint = document.getElementById('bulkDiscountHint');
   const bd = siteSettings.bulkDiscount;
   if(bd.minQty > 0 && bd.percent > 0){
@@ -1207,6 +1211,7 @@ function updateCheckoutTotals(){
   }
 }
 document.getElementById('checkoutDelivery').addEventListener('change', updateCheckoutTotals);
+document.getElementById('checkoutPayment').addEventListener('change', updateCheckoutTotals);
 
 document.getElementById('checkoutSubmit').addEventListener('click', ()=>{
   const errEl = document.getElementById('checkoutError');
