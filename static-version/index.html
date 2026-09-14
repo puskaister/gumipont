@@ -280,15 +280,21 @@
   }
   .rte-content:focus{outline:2px solid var(--signal);outline-offset:1px;}
   .rte-content img, .about-text img, .contact-note img{max-width:100%;border-radius:3px;margin:12px 0;display:block;}
+  .rte-content h1{font-family:'IBM Plex Sans',sans-serif;font-size:30px;font-weight:700;margin:16px 0 8px;}
   .rte-content h2{font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:700;margin:14px 0 6px;}
+  .rte-content h3{font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;margin:12px 0 6px;}
   .rte-content p{margin:0 0 10px;}
   .rte-content ul{padding-left:20px;margin:0 0 10px;}
+  .about-text h1{font-family:'IBM Plex Sans',sans-serif;font-size:32px;font-weight:700;margin:20px 0 10px;}
   .about-text h2{font-family:'IBM Plex Sans',sans-serif;font-size:24px;font-weight:700;margin:18px 0 8px;}
+  .about-text h3{font-family:'IBM Plex Sans',sans-serif;font-size:19px;font-weight:700;margin:16px 0 8px;}
   .about-text p{margin:0 0 14px;}
   .about-text ul{padding-left:22px;margin:0 0 14px;}
   .contact-note{margin-top:32px;padding-top:24px;border-top:1px solid var(--concrete);font-size:15px;line-height:1.7;}
   .contact-note:empty{display:none;}
+  .contact-note h1{font-family:'IBM Plex Sans',sans-serif;font-size:26px;font-weight:700;margin:0 0 12px;}
   .contact-note h2{font-family:'IBM Plex Sans',sans-serif;font-size:20px;font-weight:700;margin:0 0 10px;}
+  .contact-note h3{font-family:'IBM Plex Sans',sans-serif;font-size:16px;font-weight:700;margin:0 0 8px;}
   .contact-note p{margin:0 0 12px;}
 
   @media (max-width:860px){
@@ -687,10 +693,16 @@
       <div class="rte-toolbar" id="termsToolbar">
         <button type="button" data-cmd="bold"><b>Félkövér</b></button>
         <button type="button" data-cmd="italic"><i>Dőlt</i></button>
+        <button type="button" data-cmd="formatBlock" data-value="H1">Cím</button>
         <button type="button" data-cmd="formatBlock" data-value="H2">Alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="H3">Kis alcím</button>
         <button type="button" data-cmd="formatBlock" data-value="P">Bekezdés</button>
         <button type="button" data-cmd="insertUnorderedList">Felsorolás</button>
         <button type="button" data-cmd="createLink">Link</button>
+        <button type="button" data-fontsize="13">Kicsi betű</button>
+        <button type="button" data-fontsize="16">Normál betű</button>
+        <button type="button" data-fontsize="20">Nagy betű</button>
+        <button type="button" data-fontsize="28">Extra nagy betű</button>
       </div>
       <div class="rte-content" id="termsEditor" contenteditable="true"></div>
       <div class="modal-actions">
@@ -735,11 +747,17 @@
       <div class="rte-toolbar" id="aboutToolbar">
         <button type="button" data-cmd="bold"><b>Félkövér</b></button>
         <button type="button" data-cmd="italic"><i>Dőlt</i></button>
+        <button type="button" data-cmd="formatBlock" data-value="H1">Cím</button>
         <button type="button" data-cmd="formatBlock" data-value="H2">Alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="H3">Kis alcím</button>
         <button type="button" data-cmd="formatBlock" data-value="P">Bekezdés</button>
         <button type="button" data-cmd="insertUnorderedList">Felsorolás</button>
         <button type="button" data-cmd="createLink">Link</button>
         <button type="button" data-cmd="insertImage">Kép feltöltése</button>
+        <button type="button" data-fontsize="13">Kicsi betű</button>
+        <button type="button" data-fontsize="16">Normál betű</button>
+        <button type="button" data-fontsize="20">Nagy betű</button>
+        <button type="button" data-fontsize="28">Extra nagy betű</button>
       </div>
       <div class="rte-content" id="aboutEditor" contenteditable="true"></div>
       <input type="file" accept="image/*" id="aboutImgInput" style="display:none;">
@@ -761,10 +779,15 @@
         <button type="button" data-cmd="italic"><i>Dőlt</i></button>
         <button type="button" data-cmd="formatBlock" data-value="H1">Cím</button>
         <button type="button" data-cmd="formatBlock" data-value="H2">Alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="H3">Kis alcím</button>
         <button type="button" data-cmd="formatBlock" data-value="P">Bekezdés</button>
         <button type="button" data-cmd="insertUnorderedList">Felsorolás</button>
         <button type="button" data-cmd="createLink">Link</button>
         <button type="button" data-cmd="insertImage">Kép feltöltése</button>
+        <button type="button" data-fontsize="13">Kicsi betű</button>
+        <button type="button" data-fontsize="16">Normál betű</button>
+        <button type="button" data-fontsize="20">Nagy betű</button>
+        <button type="button" data-fontsize="28">Extra nagy betű</button>
       </div>
       <div class="rte-content" id="shopIntroEditor" contenteditable="true"></div>
       <input type="file" accept="image/*" id="shopIntroImgInput" style="display:none;">
@@ -792,10 +815,16 @@
       <div class="rte-toolbar" id="contactNoteToolbar">
         <button type="button" data-cmd="bold"><b>Félkövér</b></button>
         <button type="button" data-cmd="italic"><i>Dőlt</i></button>
+        <button type="button" data-cmd="formatBlock" data-value="H1">Cím</button>
         <button type="button" data-cmd="formatBlock" data-value="H2">Alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="H3">Kis alcím</button>
         <button type="button" data-cmd="formatBlock" data-value="P">Bekezdés</button>
         <button type="button" data-cmd="insertUnorderedList">Felsorolás</button>
         <button type="button" data-cmd="insertImage">Kép feltöltése</button>
+        <button type="button" data-fontsize="13">Kicsi betű</button>
+        <button type="button" data-fontsize="16">Normál betű</button>
+        <button type="button" data-fontsize="20">Nagy betű</button>
+        <button type="button" data-fontsize="28">Extra nagy betű</button>
       </div>
       <div class="rte-content" id="contactNoteEditor" contenteditable="true"></div>
       <input type="file" accept="image/*" id="contactNoteImgInput" style="display:none;">
@@ -1798,6 +1827,22 @@ function wireEditor(toolbarId, editorId, imgInputId){
       e.target.value = '';
     });
   }
+
+  // Betűméret: a régi execCommand('fontSize') 1-7-es skálát és <font> tageket
+  // ad, ezért egy trükkel (7-es méret, majd az így kapott <font size="7">
+  // elemek lecserélése valódi px-es <span>-re) valódi CSS betűméretet kapunk.
+  toolbar.querySelectorAll('[data-fontsize]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      editor.focus();
+      document.execCommand('fontSize', false, '7');
+      editor.querySelectorAll('font[size="7"]').forEach(el=>{
+        const span = document.createElement('span');
+        span.style.fontSize = btn.dataset.fontsize + 'px';
+        while(el.firstChild) span.appendChild(el.firstChild);
+        el.replaceWith(span);
+      });
+    });
+  });
 }
 wireEditor('aboutToolbar', 'aboutEditor', 'aboutImgInput');
 wireEditor('shopIntroToolbar', 'shopIntroEditor', 'shopIntroImgInput');
