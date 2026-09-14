@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   role                ENUM('user','admin') NOT NULL DEFAULT 'user',
   reset_token_hash    VARCHAR(64) NULL,
   reset_token_expires DATETIME NULL,
-  created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS products (
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS orders (
   discount          DECIMAL(10,2) NOT NULL DEFAULT 0,
   shipping_cost     DECIMAL(10,2) NOT NULL DEFAULT 0,
   total             DECIMAL(10,2) NOT NULL,
-  created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
