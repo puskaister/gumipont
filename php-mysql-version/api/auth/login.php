@@ -16,7 +16,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $password === '') {
 $stmt = $mysqli->prepare('SELECT * FROM users WHERE email = ?');
 $stmt->bind_param('s', $email);
 $stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+$user = stmt_fetch_one($stmt);
 $stmt->close();
 
 if (!$user || !password_verify($password, $user['password_hash'])) {

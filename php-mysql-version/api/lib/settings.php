@@ -11,7 +11,7 @@ function get_setting(mysqli $mysqli, string $key) {
     $stmt = $mysqli->prepare('SELECT `value` FROM settings WHERE `key` = ?');
     $stmt->bind_param('s', $key);
     $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
+    $row = stmt_fetch_one($stmt);
     $stmt->close();
 
     if (!$row) return SETTINGS_DEFAULTS[$key] ?? null;

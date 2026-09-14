@@ -38,7 +38,7 @@ foreach ($items as $item) {
     $stmt = $mysqli->prepare('SELECT * FROM products WHERE id = ?');
     $stmt->bind_param('i', $productId);
     $stmt->execute();
-    $product = $stmt->get_result()->fetch_assoc();
+    $product = stmt_fetch_one($stmt);
     $stmt->close();
 
     if (!$product) error_response("Product $productId not found");

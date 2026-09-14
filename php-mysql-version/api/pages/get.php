@@ -10,7 +10,7 @@ if ($id === '') error_response('Invalid input: id');
 $stmt = $mysqli->prepare('SELECT id, title, content FROM pages WHERE id = ?');
 $stmt->bind_param('s', $id);
 $stmt->execute();
-$page = $stmt->get_result()->fetch_assoc();
+$page = stmt_fetch_one($stmt);
 $stmt->close();
 
 if (!$page) error_response('Page not found', 404);

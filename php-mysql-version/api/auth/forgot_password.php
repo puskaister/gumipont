@@ -12,7 +12,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) error_response('Invalid input');
 $stmt = $mysqli->prepare('SELECT id FROM users WHERE email = ?');
 $stmt->bind_param('s', $email);
 $stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+$user = stmt_fetch_one($stmt);
 $stmt->close();
 
 // Ugyanazt a választ adjuk vissza, ha a fiók létezik vagy sem — így ez a

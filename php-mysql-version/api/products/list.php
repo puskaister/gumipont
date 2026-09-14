@@ -21,10 +21,10 @@ $sql .= ' ORDER BY id';
 $stmt = $mysqli->prepare($sql);
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
-$result = $stmt->get_result();
+$rows = stmt_fetch_all($stmt);
 
 $products = [];
-while ($row = $result->fetch_assoc()) {
+foreach ($rows as $row) {
     $products[] = [
         'id' => (int) $row['id'],
         'brand' => $row['brand'],

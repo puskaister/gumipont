@@ -21,7 +21,7 @@ $tokenHash = hash('sha256', $token);
 $stmt = $mysqli->prepare('SELECT * FROM users WHERE reset_token_hash = ? AND reset_token_expires > ?');
 $stmt->bind_param('ss', $tokenHash, $now);
 $stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+$user = stmt_fetch_one($stmt);
 $stmt->close();
 
 if (!$user) error_response('Érvénytelen vagy lejárt link.');

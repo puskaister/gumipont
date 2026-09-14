@@ -14,6 +14,7 @@ if (!file_exists($configPath)) {
     exit;
 }
 $config = require $configPath;
+require __DIR__ . '/lib/db.php';
 
 session_name($config['session_name'] ?? 'gumipont_session');
 session_set_cookie_params([
@@ -85,7 +86,7 @@ function current_user(mysqli $mysqli): ?array {
     $stmt = $mysqli->prepare('SELECT id, name, email, role, created_at FROM users WHERE id = ?');
     $stmt->bind_param('i', $_SESSION['user_id']);
     $stmt->execute();
-    $user = $stmt->get_result()->fetch_assoc();
+    $user = stmt_fetch_one($stmt);
     $stmt->close();
     return $user ?: null;
 }
@@ -108,7 +109,7 @@ function check_rate_limit(mysqli $mysqli, string $key, int $limit, int $windowSe
     $stmt = $mysqli->prepare('SELECT count, UNIX_TIMESTAMP(window_start) AS window_start FROM rate_limits WHERE rl_key = ?');
     $stmt->bind_param('s', $key);
     $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
+    $row = stmt_fetch_one($stmt);
     $stmt->close();
 
     if (!$row || ($now - (int) $row['window_start']) > $windowSeconds) {

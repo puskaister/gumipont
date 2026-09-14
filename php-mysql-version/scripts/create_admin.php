@@ -50,6 +50,7 @@ if (!$name || !$email || !$password) {
 }
 
 $config = require __DIR__ . '/../api/config.php';
+require __DIR__ . '/../api/lib/db.php';
 
 $mysqli = mysqli_init();
 if (!$mysqli->real_connect($config['db']['host'], $config['db']['user'], $config['db']['pass'], $config['db']['name'])) {
@@ -64,7 +65,7 @@ if (strlen((string) $password) < 8) $fail('A jelszó legalább 8 karakter legyen
 $stmt = $mysqli->prepare('SELECT id FROM users WHERE email = ?');
 $stmt->bind_param('s', $email);
 $stmt->execute();
-if ($stmt->get_result()->fetch_assoc()) {
+if (stmt_fetch_one($stmt)) {
     $stmt->close();
     $fail("Már létezik felhasználó ezzel az email címmel: $email");
 }

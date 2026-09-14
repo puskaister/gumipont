@@ -27,10 +27,10 @@ function attach_order_items(mysqli $mysqli, array $orders): array {
     );
     $stmt->bind_param($types, ...$ids);
     $stmt->execute();
-    $result = $stmt->get_result();
+    $rows = stmt_fetch_all($stmt);
 
     $byOrder = [];
-    while ($row = $result->fetch_assoc()) {
+    foreach ($rows as $row) {
         $byOrder[$row['order_id']][] = [
             'brand' => $row['brand'],
             'model' => $row['model'],

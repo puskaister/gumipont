@@ -14,7 +14,7 @@ if ($id <= 0) error_response('Invalid input: id');
 $stmt = $mysqli->prepare('SELECT * FROM products WHERE id = ?');
 $stmt->bind_param('i', $id);
 $stmt->execute();
-$existing = $stmt->get_result()->fetch_assoc();
+$existing = stmt_fetch_one($stmt);
 $stmt->close();
 if (!$existing) error_response('Product not found', 404);
 

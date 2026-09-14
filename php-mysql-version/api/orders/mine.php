@@ -8,11 +8,7 @@ $user = require_auth($mysqli);
 $stmt = $mysqli->prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC');
 $stmt->bind_param('i', $user['id']);
 $stmt->execute();
-$result = $stmt->get_result();
-$orders = [];
-while ($row = $result->fetch_assoc()) {
-    $orders[] = $row;
-}
+$orders = stmt_fetch_all($stmt);
 $stmt->close();
 
 if ($orders) {
@@ -28,10 +24,10 @@ if ($orders) {
     );
     $itemsStmt->bind_param($types, ...$ids);
     $itemsStmt->execute();
-    $itemsResult = $itemsStmt->get_result();
+    $itemsRows = stmt_fetch_all($itemsStmt);
 
     $byOrder = [];
-    while ($row = $itemsResult->fetch_assoc()) {
+    foreach ($itemsRows as $row) {
         $byOrder[$row['order_id']][] = [
             'brand' => $row['brand'],
             'model' => $row['model'],

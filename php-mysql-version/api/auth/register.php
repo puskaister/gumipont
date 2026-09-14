@@ -17,7 +17,7 @@ if (strlen($password) < 8 || strlen($password) > 200) error_response('Invalid in
 $stmt = $mysqli->prepare('SELECT id FROM users WHERE email = ?');
 $stmt->bind_param('s', $email);
 $stmt->execute();
-if ($stmt->get_result()->fetch_assoc()) {
+if (stmt_fetch_one($stmt)) {
     $stmt->close();
     error_response('Email already registered', 409);
 }
