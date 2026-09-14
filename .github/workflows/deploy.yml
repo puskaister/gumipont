@@ -25,7 +25,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           local-dir: ./php-mysql-version/
-          server-dir: ./www/proba.gumipont.hu/
+          server-dir: ./
           exclude: |
             **/.git*
             **/.git*/**
