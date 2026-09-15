@@ -457,7 +457,7 @@
         <div id="brandFilters"></div>
       </div>
       <div class="filter-group">
-        <div class="flabel">ÁR, EUR</div>
+        <div class="flabel">ÁR, HUF</div>
         <div class="price-inputs">
           <input type="number" id="priceMin" placeholder="Min">
           <span>–</span>
@@ -680,7 +680,7 @@
             <option value="all-season">Négyévszakos</option>
           </select>
         </div>
-        <div class="form-field"><label>Ár (EUR)</label><input id="pfPrice" type="number"></div>
+        <div class="form-field"><label>Ár (HUF)</label><input id="pfPrice" type="number"></div>
         <div class="form-field"><label>Készlet (db)</label><input id="pfStock" type="number"></div>
         <div class="form-field"><label>Sebességindex</label><input id="pfSpeed" placeholder="pl. V"></div>
         <div class="form-field"><label>Terhelésindex</label><input id="pfLoad" placeholder="pl. 91"></div>
@@ -1774,7 +1774,7 @@ function saveContent(){
 /* ---------- BEÁLLÍTÁSOK (pénznem, szállítás, tömeges kedvezmény) ---------- */
 const SETTINGS_KEY = 'vulc-settings-hu-v1';
 const DEFAULT_SETTINGS = {
-  currency: '€',
+  currency: 'HUF',
   shipping: { courier: 15, pickup: 0 },
   bulkDiscount: { minQty: 0, percent: 0 },
 };
