@@ -226,6 +226,8 @@
     overflow-x:auto;justify-content:center;cursor:grab;
   }
   .page-nav.dragging{cursor:grabbing;user-select:none;}
+  .page-tab[draggable="true"]{cursor:grab;}
+  .page-tab.dragging-tab{opacity:.4;}
   .page-tab{
     background:none;border:none;border-right:1px solid var(--concrete);
     padding:13px 22px;font-size:13px;font-family:'IBM Plex Mono',monospace;
@@ -1928,18 +1930,40 @@ function pageLabel(id){
   return pg ? pg.title : '';
 }
 
+function orderedNavTabs(){
+  const tabs = [
+    { id: 'shop', label: 'Webshop' },
+    { id: 'rolunk', label: 'Rólunk' },
+    { id: 'elerhetosegek', label: 'Elérhetőségeink' },
+    { id: 'feltetelek', label: 'Vásárlási feltételek' },
+    ...pages.map(pg => ({ id: pg.id, label: pg.title, deletable: true })),
+  ];
+  const order = siteSettings.navOrder;
+  if(!Array.isArray(order) || !order.length) return tabs;
+  const byId = new Map(tabs.map(t => [t.id, t]));
+  const ordered = [];
+  order.forEach(id => { if(byId.has(id)){ ordered.push(byId.get(id)); byId.delete(id); } });
+  byId.forEach(t => ordered.push(t));
+  return ordered;
+}
+
+async function saveNavOrder(ids){
+  siteSettings.navOrder = ids;
+  try{
+    await apiJson('settings/update.php', 'POST', { navOrder: ids });
+  }catch(err){
+    alert('Nem sikerült menteni a menüsorrendet: ' + err.message);
+  }
+}
+
 function renderPageNav(){
   const nav = document.getElementById('pageNav');
-  let html = `<button class="page-tab ${activePageId==='shop'?'active':''}" data-page="shop">Webshop</button>`;
-  html += `<button class="page-tab ${activePageId==='rolunk'?'active':''}" data-page="rolunk">Rólunk</button>`;
-  html += `<button class="page-tab ${activePageId==='elerhetosegek'?'active':''}" data-page="elerhetosegek">Elérhetőségeink</button>`;
-  html += `<button class="page-tab ${activePageId==='feltetelek'?'active':''}" data-page="feltetelek">Vásárlási feltételek</button>`;
-  html += pages.map(pg => `
-    <button class="page-tab ${activePageId===pg.id?'active':''}" data-page="${pg.id}">
-      ${pg.title}
-      ${isAdmin?`<span class="tab-close" data-del-page="${pg.id}">×</span>`:''}
+  const tabs = orderedNavTabs();
+  nav.innerHTML = tabs.map(t => `
+    <button class="page-tab ${activePageId===t.id?'active':''}" data-page="${t.id}" ${isAdmin?'draggable="true"':''}>
+      ${t.label}
+      ${isAdmin && t.deletable?`<span class="tab-close" data-del-page="${t.id}">×</span>`:''}
     </button>`).join('');
-  nav.innerHTML = html;
   document.getElementById('pageNavCurrentLabel').textContent = pageLabel(activePageId);
 
   nav.querySelectorAll('.page-tab').forEach(btn=>{
@@ -1965,6 +1989,33 @@ function renderPageNav(){
       else renderPageNav();
     });
   });
+
+  if(isAdmin){
+    let dragSrcId = null;
+    nav.querySelectorAll('.page-tab').forEach(btn=>{
+      btn.addEventListener('dragstart', ()=>{
+        dragSrcId = btn.dataset.page;
+        btn.classList.add('dragging-tab');
+      });
+      btn.addEventListener('dragend', ()=>{
+        btn.classList.remove('dragging-tab');
+      });
+      btn.addEventListener('dragover', (e)=>{
+        e.preventDefault();
+      });
+      btn.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        const targetId = btn.dataset.page;
+        if(!dragSrcId || dragSrcId === targetId) return;
+        const ids = tabs.map(t=>t.id);
+        const from = ids.indexOf(dragSrcId);
+        const to = ids.indexOf(targetId);
+        ids.splice(to, 0, ids.splice(from, 1)[0]);
+        saveNavOrder(ids);
+        renderPageNav();
+      });
+    });
+  }
 }
 
 document.getElementById('pageNavToggle').addEventListener('click', ()=>{
@@ -1977,6 +2028,7 @@ document.getElementById('pageNavToggle').addEventListener('click', ()=>{
   const nav = document.getElementById('pageNav');
   let isDown = false, startX = 0, startScroll = 0, dragged = false;
   nav.addEventListener('mousedown', (e)=>{
+    if(e.target.closest('.page-tab[draggable="true"]')) return;
     isDown = true; dragged = false;
     nav.classList.add('dragging');
     startX = e.pageX;
@@ -2153,6 +2205,7 @@ const DEFAULT_SETTINGS = {
   currency: 'HUF',
   shipping: { courier: 15, pickup: 0 },
   bulkDiscount: { minQty: 0, percent: 0 },
+  navOrder: [],
 };
 let siteSettings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 
@@ -2164,6 +2217,7 @@ async function loadSettings(){
       currency: s.currency ?? DEFAULT_SETTINGS.currency,
       shipping: s.shipping ?? {...DEFAULT_SETTINGS.shipping},
       bulkDiscount: s.bulkDiscount ?? {...DEFAULT_SETTINGS.bulkDiscount},
+      navOrder: Array.isArray(s.navOrder) ? s.navOrder : [...DEFAULT_SETTINGS.navOrder],
     };
   }catch(e){
     console.error('Nem sikerült betölteni a beállításokat:', e);

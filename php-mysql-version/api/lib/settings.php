@@ -5,6 +5,7 @@ const SETTINGS_DEFAULTS = [
     'currency'     => 'HUF',
     'shipping'     => ['courier' => 15, 'pickup' => 0],
     'bulkDiscount' => ['minQty' => 0, 'percent' => 0],
+    'navOrder'     => [],
 ];
 
 function get_setting(mysqli $mysqli, string $key) {
