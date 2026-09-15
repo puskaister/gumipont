@@ -563,7 +563,7 @@
 <footer>
   <div class="wrap">
     <div>gumipont.hu</div>
-    <div>A méretek, árak és készletadatok ehhez a bolthoz tartoznak, és mindenki látja, aki megnyitja.</div>
+    <div>Gumipont Szerviz KFT &copy; <span id="footerYear"></span> Minden jog fenntartva</div>
   </div>
 </footer>
 
@@ -2376,6 +2376,7 @@ function checkResetTokenInUrl(){
   renderShopIntro();
   renderPageNav();
   checkResetTokenInUrl();
+  document.getElementById('footerYear').textContent = new Date().getFullYear();
 })();
 </script>
 </body>
