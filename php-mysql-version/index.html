@@ -138,6 +138,8 @@
   .booking-cta:hover{filter:brightness(0.95);}
   .filter-group{margin-bottom:28px;}
   .filter-group .flabel{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;}
+  .felni-subhead{font-size:12px;color:var(--graphite);margin:10px 0 6px;}
+  .felni-subhead:first-of-type{margin-top:0;}
   .check-row{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:8px;cursor:pointer;}
   .check-row input{accent-color:var(--ink);}
   .price-inputs{display:flex;gap:8px;align-items:center;}
@@ -508,6 +510,13 @@
         <label class="check-row"><input type="checkbox" class="vehicle-filter" value="truck"> Teherautó</label>
       </div>
       <div class="filter-group">
+        <div class="flabel">FELNI</div>
+        <div class="felni-subhead">Lyukak száma</div>
+        <div id="holeCountFilters"></div>
+        <div class="felni-subhead">Méret (coll)</div>
+        <div id="felniSizeFilters"></div>
+      </div>
+      <div class="filter-group">
         <div class="flabel">MÁRKA</div>
         <div id="brandFilters"></div>
       </div>
@@ -815,9 +824,9 @@
   <div class="modal wide">
     <div class="modal-head"><h3>Készlet</h3><button class="modal-close" data-close="manageOverlay">×</button></div>
     <div class="modal-body">
-      <div style="margin-bottom:16px;"><button class="btn-primary" id="openAddBtn">Gumi hozzáadása</button></div>
+      <div style="margin-bottom:16px;"><button class="btn-primary" id="openAddBtn">Termék hozzáadása</button></div>
       <table class="admin-table">
-        <thead><tr><th>Márka</th><th>Típus</th><th>Méret</th><th>Évszak</th><th>Jármű</th><th>Ár</th><th>Készlet</th><th></th></tr></thead>
+        <thead><tr><th>Kategória</th><th>Márka</th><th>Típus</th><th>Méret</th><th>Évszak / Lyukak</th><th>Jármű</th><th>Ár</th><th>Készlet</th><th></th></tr></thead>
         <tbody id="adminTableBody"></tbody>
       </table>
     </div>
@@ -846,16 +855,24 @@
 <!-- TERMÉK ŰRLAP -->
 <div class="overlay" id="productFormOverlay">
   <div class="modal">
-    <div class="modal-head"><h3 id="productFormTitle">Gumi hozzáadása</h3><button class="modal-close" data-close="productFormOverlay">×</button></div>
+    <div class="modal-head"><h3 id="productFormTitle">Termék hozzáadása</h3><button class="modal-close" data-close="productFormOverlay">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="pfId">
       <div class="form-grid">
+        <div class="form-field full">
+          <label>Kategória</label>
+          <select id="pfCategory">
+            <option value="tire">Gumi</option>
+            <option value="rim">Felni</option>
+          </select>
+        </div>
         <div class="form-field"><label>Márka</label><input id="pfBrand"></div>
         <div class="form-field"><label>Típus</label><input id="pfModel"></div>
-        <div class="form-field"><label>Szélesség (mm)</label><input id="pfWidth" type="number"></div>
-        <div class="form-field"><label>Profil (%)</label><input id="pfProfile" type="number"></div>
+        <div class="form-field pf-tire-only"><label>Szélesség (mm)</label><input id="pfWidth" type="number"></div>
+        <div class="form-field pf-tire-only"><label>Profil (%)</label><input id="pfProfile" type="number"></div>
         <div class="form-field"><label>Felni (col)</label><input id="pfRim" type="number"></div>
-        <div class="form-field">
+        <div class="form-field pf-rim-only"><label>Lyukak száma</label><input id="pfHoleCount" type="number" placeholder="pl. 5"></div>
+        <div class="form-field pf-tire-only">
           <label>Évszak</label>
           <select id="pfSeason">
             <option value="summer">Nyári</option>
@@ -872,8 +889,8 @@
         </div>
         <div class="form-field"><label>Ár (HUF)</label><input id="pfPrice" type="number"></div>
         <div class="form-field"><label>Készlet (db)</label><input id="pfStock" type="number"></div>
-        <div class="form-field"><label>Sebességindex</label><input id="pfSpeed" placeholder="pl. V"></div>
-        <div class="form-field"><label>Terhelésindex</label><input id="pfLoad" placeholder="pl. 91"></div>
+        <div class="form-field pf-tire-only"><label>Sebességindex</label><input id="pfSpeed" placeholder="pl. V"></div>
+        <div class="form-field pf-tire-only"><label>Terhelésindex</label><input id="pfLoad" placeholder="pl. 91"></div>
         <div class="form-field full">
           <label>Leírás</label>
           <textarea id="pfDescription" rows="4" placeholder="Rövid leírás a termékről — ez jelenik meg a termék kártyáján kivonatolva, és teljes egészében a felugró ablakban."></textarea>
@@ -894,7 +911,7 @@
       <div class="error-text" id="pfError" style="display:none;"></div>
       <div class="modal-actions">
         <button class="btn-ghost" data-close="productFormOverlay">Mégse</button>
-        <button class="btn-primary" id="pfSave">Gumi mentése</button>
+        <button class="btn-primary" id="pfSave">Termék mentése</button>
       </div>
     </div>
   </div>
@@ -1130,6 +1147,8 @@ let currentUser = null;
 let activeSeasonFilters = [];
 let activeVehicleTypeFilters = [];
 let activeBrandFilters = [];
+let activeHoleCountFilters = [];
+let activeFelniSizeFilters = [];
 let searchQuery = {mode:'size', width:'', profile:'', rim:'', text:''};
 
 function mapProduct(p){
@@ -1190,9 +1209,9 @@ function populateSpecDropdowns(){
   const widthSel = document.getElementById('fWidth');
   const profileSel = document.getElementById('fProfile');
   const rimSel = document.getElementById('fRim');
-  const widths = uniq(products.map(p=>p.width)).sort((a,b)=>a-b);
-  const profiles = uniq(products.map(p=>p.profile)).sort((a,b)=>a-b);
-  const rims = uniq(products.map(p=>p.rim)).sort((a,b)=>a-b);
+  const widths = uniq(products.map(p=>p.width).filter(w=>w!=null)).sort((a,b)=>a-b);
+  const profiles = uniq(products.map(p=>p.profile).filter(p=>p!=null)).sort((a,b)=>a-b);
+  const rims = uniq(products.map(p=>p.rim).filter(r=>r!=null)).sort((a,b)=>a-b);
   widthSel.innerHTML = '<option value="">Bármelyik</option>' + widths.map(w=>`<option value="${w}">${w}</option>`).join('');
   profileSel.innerHTML = '<option value="">Bármelyik</option>' + profiles.map(p=>`<option value="${p}">${p}</option>`).join('');
   rimSel.innerHTML = '<option value="">Bármelyik</option>' + rims.map(r=>`<option value="${r}">${r}</option>`).join('');
@@ -1203,6 +1222,18 @@ function populateBrandFilters(){
   const container = document.getElementById('brandFilters');
   container.innerHTML = brands.map(b=>`<label class="check-row"><input type="checkbox" class="brand-filter" value="${b}"> ${b}</label>`).join('');
   container.querySelectorAll('.brand-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
+}
+
+function populateFelniFilters(){
+  const rimProducts = products.filter(p=>p.category==='rim');
+  const holeCounts = uniq(rimProducts.map(p=>p.holeCount).filter(h=>h!=null)).sort((a,b)=>a-b);
+  const sizes = uniq(rimProducts.map(p=>p.rim).filter(r=>r!=null)).sort((a,b)=>a-b);
+  const holeContainer = document.getElementById('holeCountFilters');
+  const sizeContainer = document.getElementById('felniSizeFilters');
+  holeContainer.innerHTML = holeCounts.map(h=>`<label class="check-row"><input type="checkbox" class="holecount-filter" value="${h}"> ${h} lyukas</label>`).join('');
+  sizeContainer.innerHTML = sizes.map(s=>`<label class="check-row"><input type="checkbox" class="felnisize-filter" value="${s}"> R${s}</label>`).join('');
+  holeContainer.querySelectorAll('.holecount-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
+  sizeContainer.querySelectorAll('.felnisize-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
 }
 
 /* Részletesebb, illusztrált gumiabroncs-ikon minden kártyához */
@@ -1252,7 +1283,8 @@ function getFilteredProducts(){
   } else if(searchQuery.mode==='text' && searchQuery.text.trim()){
     const q = searchQuery.text.trim().toLowerCase().replace(/\s+/g,'');
     list = list.filter(p=>{
-      const hay = `${p.brand}${p.model}${p.width}/${p.profile}r${p.rim}`.toLowerCase().replace(/\s+/g,'');
+      const sizePart = p.category==='tire' ? `${p.width}/${p.profile}r${p.rim}` : `r${p.rim}`;
+      const hay = `${p.brand}${p.model}${sizePart}`.toLowerCase().replace(/\s+/g,'');
       return hay.includes(q);
     });
   }
@@ -1260,6 +1292,8 @@ function getFilteredProducts(){
   if(activeSeasonFilters.length) list = list.filter(p=>activeSeasonFilters.includes(p.season));
   if(activeVehicleTypeFilters.length) list = list.filter(p=>activeVehicleTypeFilters.includes(p.vehicleType));
   if(activeBrandFilters.length) list = list.filter(p=>activeBrandFilters.includes(p.brand));
+  if(activeHoleCountFilters.length) list = list.filter(p=>p.category==='rim' && activeHoleCountFilters.includes(String(p.holeCount)));
+  if(activeFelniSizeFilters.length) list = list.filter(p=>p.category==='rim' && activeFelniSizeFilters.includes(String(p.rim)));
 
   const min = parseFloat(document.getElementById('priceMin').value);
   const max = parseFloat(document.getElementById('priceMax').value);
@@ -1272,29 +1306,34 @@ function getFilteredProducts(){
 function renderGrid(){
   const list = getFilteredProducts();
   const grid = document.getElementById('productGrid');
-  document.getElementById('resultsCount').textContent = `${list.length} gumi`;
+  document.getElementById('resultsCount').textContent = `${list.length} termék`;
 
   if(list.length===0){
-    grid.innerHTML = `<div class="empty-state"><h3>Nincs egyező méret.</h3><p>Törölj egy szűrőt, vagy próbálj más méretet keresni.</p></div>`;
+    grid.innerHTML = `<div class="empty-state"><h3>Nincs egyező találat.</h3><p>Törölj egy szűrőt, vagy próbálj más méretet keresni.</p></div>`;
     return;
   }
 
   grid.innerHTML = list.map(p=>{
     const outOfStock = p.stock<=0;
+    const isRim = p.category==='rim';
     return `
     <div class="card" data-id="${p.id}">
       ${isAdmin?`<div class="admin-card-actions"><button class="edit-card" data-id="${p.id}">Szerkesztés</button><button class="del del-card" data-id="${p.id}">Törlés</button></div>`:''}
       <div class="card-top">
         ${p.image ? `<img class="card-photo" src="${p.image}" alt="${p.brand} ${p.model}">` : tyreIconSVG(p.season)}
         <div class="card-tags">
-          <span class="season-tag ${seasonClass(p.season)}">${seasonLabel(p.season)}</span>
+          ${isRim
+            ? `<span class="season-tag season-all">Felni</span>`
+            : `<span class="season-tag ${seasonClass(p.season)}">${seasonLabel(p.season)}</span>`}
           <span class="vehicle-tag">${vehicleTypeLabel(p.vehicleType)}</span>
         </div>
       </div>
       <div class="card-brand">${p.brand}</div>
       <div class="card-model">${p.model}</div>
-      <div class="card-size">${p.width}/${p.profile} R${p.rim}</div>
-      <div class="card-specs"><span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span></div>
+      <div class="card-size">${isRim ? `R${p.rim}` : `${p.width}/${p.profile} R${p.rim}`}</div>
+      ${isRim
+        ? `<div class="card-specs"><span>Lyukak száma ${p.holeCount||'—'}</span></div>`
+        : `<div class="card-specs"><span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span></div>`}
       ${p.description?`<div class="card-desc">${excerpt(p.description, 14)}</div>`:''}
       <div class="card-bottom">
         <div>
@@ -1333,11 +1372,20 @@ function openProductDetail(id){
     imgWrap.innerHTML = tyreIconSVG(p.season);
   }
 
-  document.getElementById('pdSeasonTag').textContent = seasonLabel(p.season);
-  document.getElementById('pdSeasonTag').className = `season-tag ${seasonClass(p.season)}`;
+  const isRim = p.category==='rim';
+  const seasonTag = document.getElementById('pdSeasonTag');
+  if(isRim){
+    seasonTag.textContent = 'Felni';
+    seasonTag.className = 'season-tag season-all';
+  } else {
+    seasonTag.textContent = seasonLabel(p.season);
+    seasonTag.className = `season-tag ${seasonClass(p.season)}`;
+  }
   document.getElementById('pdVehicleTag').textContent = vehicleTypeLabel(p.vehicleType);
-  document.getElementById('pdSize').textContent = `${p.width}/${p.profile} R${p.rim}`;
-  document.getElementById('pdSpecs').innerHTML = `<span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span>`;
+  document.getElementById('pdSize').textContent = isRim ? `R${p.rim}` : `${p.width}/${p.profile} R${p.rim}`;
+  document.getElementById('pdSpecs').innerHTML = isRim
+    ? `<span>Lyukak száma ${p.holeCount||'—'}</span>`
+    : `<span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span>`;
   document.getElementById('pdPrice').textContent = fmt(p.price);
 
   const outOfStock = p.stock<=0;
@@ -1369,6 +1417,8 @@ function onFilterChange(){
   activeSeasonFilters = [...document.querySelectorAll('.season-filter:checked')].map(cb=>cb.value);
   activeVehicleTypeFilters = [...document.querySelectorAll('.vehicle-filter:checked')].map(cb=>cb.value);
   activeBrandFilters = [...document.querySelectorAll('.brand-filter:checked')].map(cb=>cb.value);
+  activeHoleCountFilters = [...document.querySelectorAll('.holecount-filter:checked')].map(cb=>cb.value);
+  activeFelniSizeFilters = [...document.querySelectorAll('.felnisize-filter:checked')].map(cb=>cb.value);
   renderGrid();
 }
 
@@ -1377,10 +1427,10 @@ document.querySelectorAll('.vehicle-filter').forEach(cb=>cb.addEventListener('ch
 document.getElementById('priceMin').addEventListener('input', renderGrid);
 document.getElementById('priceMax').addEventListener('input', renderGrid);
 document.getElementById('resetFilters').addEventListener('click', ()=>{
-  document.querySelectorAll('.season-filter, .vehicle-filter, .brand-filter').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.season-filter, .vehicle-filter, .brand-filter, .holecount-filter, .felnisize-filter').forEach(cb=>cb.checked=false);
   document.getElementById('priceMin').value='';
   document.getElementById('priceMax').value='';
-  activeSeasonFilters=[]; activeVehicleTypeFilters=[]; activeBrandFilters=[];
+  activeSeasonFilters=[]; activeVehicleTypeFilters=[]; activeBrandFilters=[]; activeHoleCountFilters=[]; activeFelniSizeFilters=[];
   searchQuery = {mode:'size', width:'', profile:'', rim:'', text:''};
   document.getElementById('fWidth').value='';
   document.getElementById('fProfile').value='';
@@ -1493,7 +1543,7 @@ function renderCart(){
     return `<div class="cart-item">
       <div class="cart-item-info">
         <div class="im">${p.brand} ${p.model}</div>
-        <div class="isize">${p.width}/${p.profile} R${p.rim}</div>
+        <div class="isize">${p.category==='rim' ? `R${p.rim}` : `${p.width}/${p.profile} R${p.rim}`}</div>
         <div class="qty-row">
           <button class="qty-dec" data-id="${p.id}">−</button>
           <span>${c.qty}</span>
@@ -1600,6 +1650,7 @@ document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
   await loadProducts();
   populateSpecDropdowns();
   populateBrandFilters();
+  populateFelniFilters();
   renderGrid();
 
   document.getElementById('checkoutName').value='';
@@ -1834,12 +1885,16 @@ document.getElementById('settingsSave').addEventListener('click', async ()=>{
 
 function renderAdminTable(){
   const tbody = document.getElementById('adminTableBody');
-  tbody.innerHTML = products.map(p=>`
+  tbody.innerHTML = products.map(p=>{
+    const isRim = p.category==='rim';
+    return `
     <tr>
-      <td>${p.brand}</td><td>${p.model}</td><td class="mono">${p.width}/${p.profile}R${p.rim}</td>
-      <td>${seasonLabel(p.season)}</td><td>${vehicleTypeLabel(p.vehicleType)}</td><td>${fmt(p.price)}</td><td>${p.stock}</td>
+      <td>${isRim?'Felni':'Gumi'}</td><td>${p.brand}</td><td>${p.model}</td>
+      <td class="mono">${isRim ? `R${p.rim}` : `${p.width}/${p.profile}R${p.rim}`}</td>
+      <td>${isRim ? `${p.holeCount||'—'} lyukas` : seasonLabel(p.season)}</td><td>${vehicleTypeLabel(p.vehicleType)}</td><td>${fmt(p.price)}</td><td>${p.stock}</td>
       <td><button class="edit-row" data-id="${p.id}">Szerkesztés</button><button class="del del-row" data-id="${p.id}">Törlés</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   tbody.querySelectorAll('.edit-row').forEach(b=>b.addEventListener('click', ()=>{ closeOverlay('manageOverlay'); openProductForm(b.dataset.id); }));
   tbody.querySelectorAll('.del-row').forEach(b=>b.addEventListener('click', async ()=>{ await deleteProduct(b.dataset.id); renderAdminTable(); }));
 }
@@ -1932,23 +1987,33 @@ document.getElementById('pfImageRemove').addEventListener('click', ()=>{
   updatePfImagePreview();
 });
 
+function togglePfCategoryFields(){
+  const isRim = document.getElementById('pfCategory').value === 'rim';
+  document.querySelectorAll('.pf-tire-only').forEach(el=>el.style.display = isRim ? 'none' : '');
+  document.querySelectorAll('.pf-rim-only').forEach(el=>el.style.display = isRim ? '' : 'none');
+}
+document.getElementById('pfCategory').addEventListener('change', togglePfCategoryFields);
+
 function openProductForm(id){
   document.getElementById('pfError').style.display='none';
   const p = id ? products.find(pp=>pp.id===id) : null;
-  document.getElementById('productFormTitle').textContent = p ? 'Gumi szerkesztése' : 'Gumi hozzáadása';
+  document.getElementById('productFormTitle').textContent = p ? 'Termék szerkesztése' : 'Termék hozzáadása';
   document.getElementById('pfId').value = p ? p.id : '';
+  document.getElementById('pfCategory').value = p ? p.category : 'tire';
   document.getElementById('pfBrand').value = p ? p.brand : '';
   document.getElementById('pfModel').value = p ? p.model : '';
-  document.getElementById('pfWidth').value = p ? p.width : '';
-  document.getElementById('pfProfile').value = p ? p.profile : '';
+  document.getElementById('pfWidth').value = p && p.width!=null ? p.width : '';
+  document.getElementById('pfProfile').value = p && p.profile!=null ? p.profile : '';
   document.getElementById('pfRim').value = p ? p.rim : '';
-  document.getElementById('pfSeason').value = p ? p.season : 'summer';
+  document.getElementById('pfHoleCount').value = p && p.holeCount!=null ? p.holeCount : '';
+  document.getElementById('pfSeason').value = p && p.season ? p.season : 'summer';
   document.getElementById('pfVehicleType').value = p ? p.vehicleType : 'car';
   document.getElementById('pfPrice').value = p ? p.price : '';
   document.getElementById('pfStock').value = p ? p.stock : '';
   document.getElementById('pfSpeed').value = p ? (p.speed||'') : '';
   document.getElementById('pfLoad').value = p ? (p.load||'') : '';
   document.getElementById('pfDescription').value = p ? (p.description||'') : '';
+  togglePfCategoryFields();
   pfImageFile = null;
   pfImageRemoved = false;
   pfImagePreviewUrl = p ? (p.image || null) : null;
@@ -1957,17 +2022,30 @@ function openProductForm(id){
 }
 
 document.getElementById('pfSave').addEventListener('click', async ()=>{
+  const category = document.getElementById('pfCategory').value;
+  const isRim = category === 'rim';
   const brand = document.getElementById('pfBrand').value.trim();
   const model = document.getElementById('pfModel').value.trim();
   const width = document.getElementById('pfWidth').value;
   const profile = document.getElementById('pfProfile').value;
   const rim = document.getElementById('pfRim').value;
+  const holeCount = document.getElementById('pfHoleCount').value;
   const price = document.getElementById('pfPrice').value;
   const stock = document.getElementById('pfStock').value;
   const errEl = document.getElementById('pfError');
 
-  if(!brand || !model || !width || !profile || !rim || !price || stock===''){
-    errEl.textContent = 'Töltsd ki a márkát, típust, méretet, árat és a készletet.';
+  if(!brand || !model || !rim || !price || stock===''){
+    errEl.textContent = 'Töltsd ki a márkát, típust, a felni méretét, az árat és a készletet.';
+    errEl.style.display='block';
+    return;
+  }
+  if(!isRim && (!width || !profile)){
+    errEl.textContent = 'Töltsd ki a gumi szélességét és profilját.';
+    errEl.style.display='block';
+    return;
+  }
+  if(isRim && !holeCount){
+    errEl.textContent = 'Add meg a felni lyukainak számát.';
     errEl.style.display='block';
     return;
   }
@@ -1975,18 +2053,23 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
 
   const id = document.getElementById('pfId').value;
   const formData = new FormData();
+  formData.append('category', category);
   formData.append('brand', brand);
   formData.append('model', model);
-  formData.append('width', width);
-  formData.append('profile', profile);
   formData.append('rim', rim);
-  formData.append('season', document.getElementById('pfSeason').value);
   formData.append('vehicleType', document.getElementById('pfVehicleType').value);
   formData.append('price', price);
   formData.append('stock', stock);
-  formData.append('speed', document.getElementById('pfSpeed').value.trim());
-  formData.append('loadIndex', document.getElementById('pfLoad').value.trim());
   formData.append('description', document.getElementById('pfDescription').value.trim());
+  if(isRim){
+    formData.append('holeCount', holeCount);
+  } else {
+    formData.append('width', width);
+    formData.append('profile', profile);
+    formData.append('season', document.getElementById('pfSeason').value);
+    formData.append('speed', document.getElementById('pfSpeed').value.trim());
+    formData.append('loadIndex', document.getElementById('pfLoad').value.trim());
+  }
   if(pfImageFile){
     formData.append('image', pfImageFile);
   } else if(pfImageRemoved){
@@ -2009,13 +2092,14 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
   await loadProducts();
   populateSpecDropdowns();
   populateBrandFilters();
+  populateFelniFilters();
   closeOverlay('productFormOverlay');
   renderGrid();
   if(document.getElementById('manageOverlay').classList.contains('open')) renderAdminTable();
 });
 
 async function deleteProduct(id){
-  if(!confirm('Biztosan törlöd ezt a gumit a boltból?')) return;
+  if(!confirm('Biztosan törlöd ezt a terméket a boltból?')) return;
   try{
     await apiJson('products/delete.php', 'POST', { id });
   }catch(e){
@@ -2027,6 +2111,7 @@ async function deleteProduct(id){
   saveCart();
   populateSpecDropdowns();
   populateBrandFilters();
+  populateFelniFilters();
   renderGrid();
   renderCartCount();
 }
@@ -2580,6 +2665,7 @@ function checkResetTokenInUrl(){
   await loadContent();
   populateSpecDropdowns();
   populateBrandFilters();
+  populateFelniFilters();
   renderGrid();
   renderCartCount();
   renderShopIntro();

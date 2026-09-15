@@ -18,12 +18,14 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS products (
   id          INT AUTO_INCREMENT PRIMARY KEY,
+  category    ENUM('tire','rim') NOT NULL DEFAULT 'tire',
   brand       VARCHAR(120) NOT NULL,
   model       VARCHAR(120) NOT NULL,
-  width       INT NOT NULL,
-  profile     INT NOT NULL,
+  width       INT NULL,
+  profile     INT NULL,
   rim         INT NOT NULL,
-  season      ENUM('summer','winter','all-season') NOT NULL,
+  hole_count  INT NULL,
+  season      ENUM('summer','winter','all-season') NULL,
   vehicle_type ENUM('car','truck') NOT NULL DEFAULT 'car',
   price       DECIMAL(10,2) NOT NULL,
   stock       INT NOT NULL DEFAULT 0,

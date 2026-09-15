@@ -8,9 +8,11 @@ $where = [];
 $params = [];
 $types = '';
 
+if (isset($_GET['category']) && $_GET['category'] !== '') { $where[] = 'category = ?'; $params[] = (string) $_GET['category']; $types .= 's'; }
 if (isset($_GET['width']) && $_GET['width'] !== '') { $where[] = 'width = ?'; $params[] = (int) $_GET['width']; $types .= 'i'; }
 if (isset($_GET['profile']) && $_GET['profile'] !== '') { $where[] = 'profile = ?'; $params[] = (int) $_GET['profile']; $types .= 'i'; }
 if (isset($_GET['rim']) && $_GET['rim'] !== '') { $where[] = 'rim = ?'; $params[] = (int) $_GET['rim']; $types .= 'i'; }
+if (isset($_GET['holeCount']) && $_GET['holeCount'] !== '') { $where[] = 'hole_count = ?'; $params[] = (int) $_GET['holeCount']; $types .= 'i'; }
 if (isset($_GET['season']) && $_GET['season'] !== '') { $where[] = 'season = ?'; $params[] = (string) $_GET['season']; $types .= 's'; }
 if (isset($_GET['vehicleType']) && $_GET['vehicleType'] !== '') { $where[] = 'vehicle_type = ?'; $params[] = (string) $_GET['vehicleType']; $types .= 's'; }
 if (isset($_GET['brand']) && $_GET['brand'] !== '') { $where[] = 'brand = ?'; $params[] = (string) $_GET['brand']; $types .= 's'; }
@@ -28,11 +30,13 @@ $products = [];
 foreach ($rows as $row) {
     $products[] = [
         'id' => (int) $row['id'],
+        'category' => $row['category'],
         'brand' => $row['brand'],
         'model' => $row['model'],
-        'width' => (int) $row['width'],
-        'profile' => (int) $row['profile'],
+        'width' => $row['width'] !== null ? (int) $row['width'] : null,
+        'profile' => $row['profile'] !== null ? (int) $row['profile'] : null,
         'rim' => (int) $row['rim'],
+        'holeCount' => $row['hole_count'] !== null ? (int) $row['hole_count'] : null,
         'season' => $row['season'],
         'vehicleType' => $row['vehicle_type'],
         'price' => (float) $row['price'],

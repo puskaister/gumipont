@@ -6,44 +6,64 @@ require __DIR__ . '/../lib/uploads.php';
 require_method('POST');
 require_admin($mysqli);
 
+$category = (string) ($_POST['category'] ?? 'tire');
+if (!in_array($category, ['tire', 'rim'], true)) error_response('Invalid input: category');
+
 $brand = trim((string) ($_POST['brand'] ?? ''));
 $model = trim((string) ($_POST['model'] ?? ''));
-$width = (int) ($_POST['width'] ?? 0);
-$profile = (int) ($_POST['profile'] ?? 0);
 $rim = (int) ($_POST['rim'] ?? 0);
-$season = (string) ($_POST['season'] ?? '');
 $vehicleType = (string) ($_POST['vehicleType'] ?? 'car');
 $price = (float) ($_POST['price'] ?? -1);
 $stock = (int) ($_POST['stock'] ?? -1);
-$speed = trim((string) ($_POST['speed'] ?? ''));
-$loadIndex = trim((string) ($_POST['loadIndex'] ?? ''));
 $description = trim((string) ($_POST['description'] ?? ''));
 
 if ($brand === '' || $model === '') error_response('Invalid input: brand/model');
-if ($width <= 0 || $profile <= 0 || $rim <= 0) error_response('Invalid input: size');
-if (!in_array($season, ['summer', 'winter', 'all-season'], true)) error_response('Invalid input: season');
+if ($rim <= 0) error_response('Invalid input: size');
 if (!in_array($vehicleType, ['car', 'truck'], true)) error_response('Invalid input: vehicleType');
 if ($price < 0) error_response('Invalid input: price');
 if ($stock < 0) error_response('Invalid input: stock');
 
+if ($category === 'tire') {
+    $width = (int) ($_POST['width'] ?? 0);
+    $profile = (int) ($_POST['profile'] ?? 0);
+    $season = (string) ($_POST['season'] ?? '');
+    $speed = trim((string) ($_POST['speed'] ?? ''));
+    $loadIndex = trim((string) ($_POST['loadIndex'] ?? ''));
+    $holeCount = null;
+
+    if ($width <= 0 || $profile <= 0) error_response('Invalid input: size');
+    if (!in_array($season, ['summer', 'winter', 'all-season'], true)) error_response('Invalid input: season');
+} else {
+    $width = null;
+    $profile = null;
+    $season = null;
+    $speed = '';
+    $loadIndex = '';
+    $holeCount = (int) ($_POST['holeCount'] ?? 0);
+
+    if ($holeCount <= 0) error_response('Invalid input: holeCount');
+}
+
 $image = save_uploaded_image('image');
 
 $stmt = $mysqli->prepare(
-    'INSERT INTO products (brand, model, width, profile, rim, season, vehicle_type, price, stock, speed, load_index, image, description)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO products (category, brand, model, width, profile, rim, hole_count, season, vehicle_type, price, stock, speed, load_index, image, description)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 $stmt->bind_param(
-    'ssiiissdissss',
-    $brand, $model, $width, $profile, $rim, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description
+    'sssiiiissdissss',
+    $category, $brand, $model, $width, $profile, $rim, $holeCount, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description
 );
-// Típusjelzők sorrendben: brand=s model=s width=i profile=i rim=i season=s
-// vehicleType=s price=d stock=i speed=s loadIndex=s image=s description=s (13 érték -> 13 jelző).
+// Típusjelzők sorrendben: category=s brand=s model=s width=i profile=i rim=i
+// hole_count=i season=s vehicleType=s price=d stock=i speed=s loadIndex=s
+// image=s description=s (15 érték -> 15 jelző). width/profile/season/hole_count
+// NULL is lehet a kategóriától függően — bind_param NULL-t is elfogad.
 $stmt->execute();
 $id = $mysqli->insert_id;
 $stmt->close();
 
 respond(['product' => [
-    'id' => $id, 'brand' => $brand, 'model' => $model, 'width' => $width, 'profile' => $profile,
-    'rim' => $rim, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price, 'stock' => $stock,
+    'id' => $id, 'category' => $category, 'brand' => $brand, 'model' => $model, 'width' => $width, 'profile' => $profile,
+    'rim' => $rim, 'holeCount' => $holeCount, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price, 'stock' => $stock,
     'speed' => $speed, 'loadIndex' => $loadIndex, 'image' => $image, 'description' => $description,
 ]], 201);
