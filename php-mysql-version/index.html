@@ -150,6 +150,11 @@
   .season-summer{background:var(--ink);color:var(--paper);}
   .season-winter{background:var(--paper);color:var(--ink);}
   .season-all{background:var(--concrete);color:var(--ink);border-color:var(--graphite-light);}
+  .card-tags{display:flex;flex-direction:column;gap:6px;align-items:flex-end;}
+  .vehicle-tag{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 7px;border-radius:2px;
+    align-self:flex-end;border:1px solid var(--graphite-light);background:var(--paper);color:var(--graphite);
+  }
   .card-brand{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);text-transform:uppercase;letter-spacing:0.06em;}
   .card-model{font-size:19px;font-weight:600;font-family:'IBM Plex Sans',sans-serif;}
   .card-size{font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--concrete);display:inline-block;padding:4px 8px;border-radius:2px;width:fit-content;}
@@ -462,6 +467,11 @@
         <label class="check-row"><input type="checkbox" class="season-filter" value="all-season"> Négyévszakos</label>
       </div>
       <div class="filter-group">
+        <div class="flabel">JÁRMŰ TÍPUS</div>
+        <label class="check-row"><input type="checkbox" class="vehicle-filter" value="car"> Személyautó</label>
+        <label class="check-row"><input type="checkbox" class="vehicle-filter" value="truck"> Teherautó</label>
+      </div>
+      <div class="filter-group">
         <div class="flabel">MÁRKA</div>
         <div id="brandFilters"></div>
       </div>
@@ -741,7 +751,7 @@
     <div class="modal-body">
       <div style="margin-bottom:16px;"><button class="btn-primary" id="openAddBtn">Gumi hozzáadása</button></div>
       <table class="admin-table">
-        <thead><tr><th>Márka</th><th>Típus</th><th>Méret</th><th>Évszak</th><th>Ár</th><th>Készlet</th><th></th></tr></thead>
+        <thead><tr><th>Márka</th><th>Típus</th><th>Méret</th><th>Évszak</th><th>Jármű</th><th>Ár</th><th>Készlet</th><th></th></tr></thead>
         <tbody id="adminTableBody"></tbody>
       </table>
     </div>
@@ -785,6 +795,13 @@
             <option value="summer">Nyári</option>
             <option value="winter">Téli</option>
             <option value="all-season">Négyévszakos</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Jármű típus</label>
+          <select id="pfVehicleType">
+            <option value="car">Személyautó</option>
+            <option value="truck">Teherautó</option>
           </select>
         </div>
         <div class="form-field"><label>Ár (HUF)</label><input id="pfPrice" type="number"></div>
@@ -1041,6 +1058,7 @@ let cart = [];
 let isAdmin = false;
 let currentUser = null;
 let activeSeasonFilters = [];
+let activeVehicleTypeFilters = [];
 let activeBrandFilters = [];
 let searchQuery = {mode:'size', width:'', profile:'', rim:'', text:''};
 
@@ -1147,6 +1165,7 @@ function tyreIconSVG(season){
 
 function seasonLabel(s){ return s==='summer'?'Nyári':s==='winter'?'Téli':'Négyévszakos'; }
 function seasonClass(s){ return s==='summer'?'season-summer':s==='winter'?'season-winter':'season-all'; }
+function vehicleTypeLabel(v){ return v==='truck'?'Teherautó':'Személyautó'; }
 
 function getFilteredProducts(){
   let list = products.slice();
@@ -1164,6 +1183,7 @@ function getFilteredProducts(){
   }
 
   if(activeSeasonFilters.length) list = list.filter(p=>activeSeasonFilters.includes(p.season));
+  if(activeVehicleTypeFilters.length) list = list.filter(p=>activeVehicleTypeFilters.includes(p.vehicleType));
   if(activeBrandFilters.length) list = list.filter(p=>activeBrandFilters.includes(p.brand));
 
   const min = parseFloat(document.getElementById('priceMin').value);
@@ -1191,7 +1211,10 @@ function renderGrid(){
       ${isAdmin?`<div class="admin-card-actions"><button class="edit-card" data-id="${p.id}">Szerkesztés</button><button class="del del-card" data-id="${p.id}">Törlés</button></div>`:''}
       <div class="card-top">
         ${p.image ? `<img class="card-photo" src="${p.image}" alt="${p.brand} ${p.model}">` : tyreIconSVG(p.season)}
-        <span class="season-tag ${seasonClass(p.season)}">${seasonLabel(p.season)}</span>
+        <div class="card-tags">
+          <span class="season-tag ${seasonClass(p.season)}">${seasonLabel(p.season)}</span>
+          <span class="vehicle-tag">${vehicleTypeLabel(p.vehicleType)}</span>
+        </div>
       </div>
       <div class="card-brand">${p.brand}</div>
       <div class="card-model">${p.model}</div>
@@ -1216,18 +1239,20 @@ function renderGrid(){
 
 function onFilterChange(){
   activeSeasonFilters = [...document.querySelectorAll('.season-filter:checked')].map(cb=>cb.value);
+  activeVehicleTypeFilters = [...document.querySelectorAll('.vehicle-filter:checked')].map(cb=>cb.value);
   activeBrandFilters = [...document.querySelectorAll('.brand-filter:checked')].map(cb=>cb.value);
   renderGrid();
 }
 
 document.querySelectorAll('.season-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
+document.querySelectorAll('.vehicle-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
 document.getElementById('priceMin').addEventListener('input', renderGrid);
 document.getElementById('priceMax').addEventListener('input', renderGrid);
 document.getElementById('resetFilters').addEventListener('click', ()=>{
-  document.querySelectorAll('.season-filter, .brand-filter').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.season-filter, .vehicle-filter, .brand-filter').forEach(cb=>cb.checked=false);
   document.getElementById('priceMin').value='';
   document.getElementById('priceMax').value='';
-  activeSeasonFilters=[]; activeBrandFilters=[];
+  activeSeasonFilters=[]; activeVehicleTypeFilters=[]; activeBrandFilters=[];
   searchQuery = {mode:'size', width:'', profile:'', rim:'', text:''};
   document.getElementById('fWidth').value='';
   document.getElementById('fProfile').value='';
@@ -1684,7 +1709,7 @@ function renderAdminTable(){
   tbody.innerHTML = products.map(p=>`
     <tr>
       <td>${p.brand}</td><td>${p.model}</td><td class="mono">${p.width}/${p.profile}R${p.rim}</td>
-      <td>${seasonLabel(p.season)}</td><td>${fmt(p.price)}</td><td>${p.stock}</td>
+      <td>${seasonLabel(p.season)}</td><td>${vehicleTypeLabel(p.vehicleType)}</td><td>${fmt(p.price)}</td><td>${p.stock}</td>
       <td><button class="edit-row" data-id="${p.id}">Szerkesztés</button><button class="del del-row" data-id="${p.id}">Törlés</button></td>
     </tr>`).join('');
   tbody.querySelectorAll('.edit-row').forEach(b=>b.addEventListener('click', ()=>{ closeOverlay('manageOverlay'); openProductForm(b.dataset.id); }));
@@ -1790,6 +1815,7 @@ function openProductForm(id){
   document.getElementById('pfProfile').value = p ? p.profile : '';
   document.getElementById('pfRim').value = p ? p.rim : '';
   document.getElementById('pfSeason').value = p ? p.season : 'summer';
+  document.getElementById('pfVehicleType').value = p ? p.vehicleType : 'car';
   document.getElementById('pfPrice').value = p ? p.price : '';
   document.getElementById('pfStock').value = p ? p.stock : '';
   document.getElementById('pfSpeed').value = p ? (p.speed||'') : '';
@@ -1826,6 +1852,7 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
   formData.append('profile', profile);
   formData.append('rim', rim);
   formData.append('season', document.getElementById('pfSeason').value);
+  formData.append('vehicleType', document.getElementById('pfVehicleType').value);
   formData.append('price', price);
   formData.append('stock', stock);
   formData.append('speed', document.getElementById('pfSpeed').value.trim());

@@ -12,6 +12,7 @@ if (isset($_GET['width']) && $_GET['width'] !== '') { $where[] = 'width = ?'; $p
 if (isset($_GET['profile']) && $_GET['profile'] !== '') { $where[] = 'profile = ?'; $params[] = (int) $_GET['profile']; $types .= 'i'; }
 if (isset($_GET['rim']) && $_GET['rim'] !== '') { $where[] = 'rim = ?'; $params[] = (int) $_GET['rim']; $types .= 'i'; }
 if (isset($_GET['season']) && $_GET['season'] !== '') { $where[] = 'season = ?'; $params[] = (string) $_GET['season']; $types .= 's'; }
+if (isset($_GET['vehicleType']) && $_GET['vehicleType'] !== '') { $where[] = 'vehicle_type = ?'; $params[] = (string) $_GET['vehicleType']; $types .= 's'; }
 if (isset($_GET['brand']) && $_GET['brand'] !== '') { $where[] = 'brand = ?'; $params[] = (string) $_GET['brand']; $types .= 's'; }
 
 $sql = 'SELECT * FROM products';
@@ -33,6 +34,7 @@ foreach ($rows as $row) {
         'profile' => (int) $row['profile'],
         'rim' => (int) $row['rim'],
         'season' => $row['season'],
+        'vehicleType' => $row['vehicle_type'],
         'price' => (float) $row['price'],
         'stock' => (int) $row['stock'],
         'speed' => $row['speed'],

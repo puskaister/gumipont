@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS products (
   profile     INT NOT NULL,
   rim         INT NOT NULL,
   season      ENUM('summer','winter','all-season') NOT NULL,
+  vehicle_type ENUM('car','truck') NOT NULL DEFAULT 'car',
   price       DECIMAL(10,2) NOT NULL,
   stock       INT NOT NULL DEFAULT 0,
   speed       VARCHAR(10) NULL,
