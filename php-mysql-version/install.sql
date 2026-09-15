@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS products (
   profile     INT NULL,
   rim         INT NOT NULL,
   hole_count  INT NULL,
+  pcd         VARCHAR(10) NULL,
   season      ENUM('summer','winter','all-season') NULL,
   vehicle_type ENUM('car','truck') NOT NULL DEFAULT 'car',
   price       DECIMAL(10,2) NOT NULL,

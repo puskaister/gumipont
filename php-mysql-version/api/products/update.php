@@ -42,6 +42,7 @@ if ($category === 'tire') {
     $speed = array_key_exists('speed', $_POST) ? trim((string) $_POST['speed']) : $existing['speed'];
     $loadIndex = array_key_exists('loadIndex', $_POST) ? trim((string) $_POST['loadIndex']) : $existing['load_index'];
     $holeCount = null;
+    $pcd = null;
 
     if ($width <= 0 || $profile <= 0) error_response('Invalid input: size');
     if (!in_array($season, ['summer', 'winter', 'all-season'], true)) error_response('Invalid input: season');
@@ -52,8 +53,10 @@ if ($category === 'tire') {
     $speed = array_key_exists('speed', $_POST) ? trim((string) $_POST['speed']) : ((string) ($existing['speed'] ?? ''));
     $loadIndex = array_key_exists('loadIndex', $_POST) ? trim((string) $_POST['loadIndex']) : ((string) ($existing['load_index'] ?? ''));
     $holeCount = array_key_exists('holeCount', $_POST) ? (int) $_POST['holeCount'] : (int) ($existing['hole_count'] ?? 0);
+    $pcd = array_key_exists('pcd', $_POST) ? trim((string) $_POST['pcd']) : ((string) ($existing['pcd'] ?? ''));
 
     if ($holeCount <= 0) error_response('Invalid input: holeCount');
+    if ($pcd === '') error_response('Invalid input: pcd');
 }
 
 $uploadedImage = save_uploaded_image('image');
@@ -66,17 +69,17 @@ if ($uploadedImage !== null) {
 }
 
 $stmt = $mysqli->prepare(
-    'UPDATE products SET category=?, brand=?, model=?, width=?, profile=?, rim=?, hole_count=?, season=?, vehicle_type=?, price=?, stock=?, speed=?, load_index=?, image=?, description=? WHERE id=?'
+    'UPDATE products SET category=?, brand=?, model=?, width=?, profile=?, rim=?, hole_count=?, pcd=?, season=?, vehicle_type=?, price=?, stock=?, speed=?, load_index=?, image=?, description=? WHERE id=?'
 );
 $stmt->bind_param(
-    'sssiiiissdissssi',
-    $category, $brand, $model, $width, $profile, $rim, $holeCount, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description, $id
+    'sssiiiisssdissssi',
+    $category, $brand, $model, $width, $profile, $rim, $holeCount, $pcd, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description, $id
 );
 $stmt->execute();
 $stmt->close();
 
 respond(['product' => [
     'id' => $id, 'category' => $category, 'brand' => $brand, 'model' => $model, 'width' => $width, 'profile' => $profile,
-    'rim' => $rim, 'holeCount' => $holeCount, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price, 'stock' => $stock,
+    'rim' => $rim, 'holeCount' => $holeCount, 'pcd' => $pcd, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price, 'stock' => $stock,
     'speed' => $speed, 'loadIndex' => $loadIndex, 'image' => $image, 'description' => $description,
 ]]);

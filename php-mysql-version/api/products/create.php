@@ -30,6 +30,7 @@ if ($category === 'tire') {
     $speed = trim((string) ($_POST['speed'] ?? ''));
     $loadIndex = trim((string) ($_POST['loadIndex'] ?? ''));
     $holeCount = null;
+    $pcd = null;
 
     if ($width <= 0 || $profile <= 0) error_response('Invalid input: size');
     if (!in_array($season, ['summer', 'winter', 'all-season'], true)) error_response('Invalid input: season');
@@ -40,23 +41,25 @@ if ($category === 'tire') {
     $speed = '';
     $loadIndex = '';
     $holeCount = (int) ($_POST['holeCount'] ?? 0);
+    $pcd = trim((string) ($_POST['pcd'] ?? ''));
 
     if ($holeCount <= 0) error_response('Invalid input: holeCount');
+    if ($pcd === '') error_response('Invalid input: pcd');
 }
 
 $image = save_uploaded_image('image');
 
 $stmt = $mysqli->prepare(
-    'INSERT INTO products (category, brand, model, width, profile, rim, hole_count, season, vehicle_type, price, stock, speed, load_index, image, description)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO products (category, brand, model, width, profile, rim, hole_count, pcd, season, vehicle_type, price, stock, speed, load_index, image, description)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 $stmt->bind_param(
-    'sssiiiissdissss',
-    $category, $brand, $model, $width, $profile, $rim, $holeCount, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description
+    'sssiiiisssdissss',
+    $category, $brand, $model, $width, $profile, $rim, $holeCount, $pcd, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description
 );
 // Típusjelzők sorrendben: category=s brand=s model=s width=i profile=i rim=i
-// hole_count=i season=s vehicleType=s price=d stock=i speed=s loadIndex=s
-// image=s description=s (15 érték -> 15 jelző). width/profile/season/hole_count
+// hole_count=i pcd=s season=s vehicleType=s price=d stock=i speed=s loadIndex=s
+// image=s description=s (16 érték -> 16 jelző). width/profile/season/hole_count/pcd
 // NULL is lehet a kategóriától függően — bind_param NULL-t is elfogad.
 $stmt->execute();
 $id = $mysqli->insert_id;
@@ -64,6 +67,6 @@ $stmt->close();
 
 respond(['product' => [
     'id' => $id, 'category' => $category, 'brand' => $brand, 'model' => $model, 'width' => $width, 'profile' => $profile,
-    'rim' => $rim, 'holeCount' => $holeCount, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price, 'stock' => $stock,
+    'rim' => $rim, 'holeCount' => $holeCount, 'pcd' => $pcd, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price, 'stock' => $stock,
     'speed' => $speed, 'loadIndex' => $loadIndex, 'image' => $image, 'description' => $description,
 ]], 201);

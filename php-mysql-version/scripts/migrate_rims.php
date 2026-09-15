@@ -1,10 +1,11 @@
 <?php
 declare(strict_types=1);
-// Egyszeri migráció: felni termékek támogatásához hozzáadja a category és
-// hole_count oszlopokat, és a width/profile/season mezőket nullázhatóvá
-// teszi (a felni termékeknek nincs szélessége/profilja/évszaka). A meglévő
-// sorok category='tire' alapértékkel maradnak. Böngészőből egyszer meg kell
-// nyitni, utána törölni kell ezt a fájlt.
+// Egyszeri migráció: felni termékek támogatásához hozzáadja a category,
+// hole_count és pcd (osztókör) oszlopokat, és a width/profile/season
+// mezőket nullázhatóvá teszi (a felni termékeknek nincs szélessége/
+// profilja/évszaka). A meglévő sorok category='tire' alapértékkel
+// maradnak. Böngészőből egyszer meg kell nyitni, utána törölni kell
+// ezt a fájlt.
 
 header('Content-Type: text/plain; charset=utf-8');
 
@@ -25,6 +26,7 @@ if ($check && $check->num_rows > 0) {
 $statements = [
     "ALTER TABLE products ADD COLUMN category ENUM('tire','rim') NOT NULL DEFAULT 'tire' AFTER id",
     "ALTER TABLE products ADD COLUMN hole_count INT NULL AFTER rim",
+    "ALTER TABLE products ADD COLUMN pcd VARCHAR(10) NULL AFTER hole_count",
     "ALTER TABLE products MODIFY width INT NULL",
     "ALTER TABLE products MODIFY profile INT NULL",
     "ALTER TABLE products MODIFY season ENUM('summer','winter','all-season') NULL",
@@ -36,4 +38,4 @@ foreach ($statements as $sql) {
     }
 }
 
-echo "Sikeres migráció: category és hole_count oszlopok hozzáadva, width/profile/season nullázható.\n";
+echo "Sikeres migráció: category, hole_count és pcd oszlopok hozzáadva, width/profile/season nullázható.\n";
