@@ -29,6 +29,7 @@ $price = array_key_exists('price', $_POST) ? (float) $_POST['price'] : (float) $
 $stock = array_key_exists('stock', $_POST) ? (int) $_POST['stock'] : (int) $existing['stock'];
 $speed = array_key_exists('speed', $_POST) ? trim((string) $_POST['speed']) : $existing['speed'];
 $loadIndex = array_key_exists('loadIndex', $_POST) ? trim((string) $_POST['loadIndex']) : $existing['load_index'];
+$description = array_key_exists('description', $_POST) ? trim((string) $_POST['description']) : $existing['description'];
 
 if ($brand === '' || $model === '') error_response('Invalid input: brand/model');
 if ($width <= 0 || $profile <= 0 || $rim <= 0) error_response('Invalid input: size');
@@ -47,11 +48,11 @@ if ($uploadedImage !== null) {
 }
 
 $stmt = $mysqli->prepare(
-    'UPDATE products SET brand=?, model=?, width=?, profile=?, rim=?, season=?, vehicle_type=?, price=?, stock=?, speed=?, load_index=?, image=? WHERE id=?'
+    'UPDATE products SET brand=?, model=?, width=?, profile=?, rim=?, season=?, vehicle_type=?, price=?, stock=?, speed=?, load_index=?, image=?, description=? WHERE id=?'
 );
 $stmt->bind_param(
-    'ssiiissdisssi',
-    $brand, $model, $width, $profile, $rim, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $id
+    'ssiiissdissssi',
+    $brand, $model, $width, $profile, $rim, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description, $id
 );
 $stmt->execute();
 $stmt->close();
@@ -59,5 +60,5 @@ $stmt->close();
 respond(['product' => [
     'id' => $id, 'brand' => $brand, 'model' => $model, 'width' => $width, 'profile' => $profile,
     'rim' => $rim, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price, 'stock' => $stock,
-    'speed' => $speed, 'loadIndex' => $loadIndex, 'image' => $image,
+    'speed' => $speed, 'loadIndex' => $loadIndex, 'image' => $image, 'description' => $description,
 ]]);

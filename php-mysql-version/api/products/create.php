@@ -17,6 +17,7 @@ $price = (float) ($_POST['price'] ?? -1);
 $stock = (int) ($_POST['stock'] ?? -1);
 $speed = trim((string) ($_POST['speed'] ?? ''));
 $loadIndex = trim((string) ($_POST['loadIndex'] ?? ''));
+$description = trim((string) ($_POST['description'] ?? ''));
 
 if ($brand === '' || $model === '') error_response('Invalid input: brand/model');
 if ($width <= 0 || $profile <= 0 || $rim <= 0) error_response('Invalid input: size');
@@ -28,15 +29,15 @@ if ($stock < 0) error_response('Invalid input: stock');
 $image = save_uploaded_image('image');
 
 $stmt = $mysqli->prepare(
-    'INSERT INTO products (brand, model, width, profile, rim, season, vehicle_type, price, stock, speed, load_index, image)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO products (brand, model, width, profile, rim, season, vehicle_type, price, stock, speed, load_index, image, description)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 $stmt->bind_param(
-    'ssiiissdisss',
-    $brand, $model, $width, $profile, $rim, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image
+    'ssiiissdissss',
+    $brand, $model, $width, $profile, $rim, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description
 );
 // Típusjelzők sorrendben: brand=s model=s width=i profile=i rim=i season=s
-// vehicleType=s price=d stock=i speed=s loadIndex=s image=s (12 érték -> 12 jelző).
+// vehicleType=s price=d stock=i speed=s loadIndex=s image=s description=s (13 érték -> 13 jelző).
 $stmt->execute();
 $id = $mysqli->insert_id;
 $stmt->close();
@@ -44,5 +45,5 @@ $stmt->close();
 respond(['product' => [
     'id' => $id, 'brand' => $brand, 'model' => $model, 'width' => $width, 'profile' => $profile,
     'rim' => $rim, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price, 'stock' => $stock,
-    'speed' => $speed, 'loadIndex' => $loadIndex, 'image' => $image,
+    'speed' => $speed, 'loadIndex' => $loadIndex, 'image' => $image, 'description' => $description,
 ]], 201);

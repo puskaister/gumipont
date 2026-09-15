@@ -40,6 +40,7 @@ foreach ($rows as $row) {
         'speed' => $row['speed'],
         'loadIndex' => $row['load_index'],
         'image' => $row['image'],
+        'description' => $row['description'],
     ];
 }
 $stmt->close();

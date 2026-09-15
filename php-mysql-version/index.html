@@ -143,7 +143,8 @@
   .results-count{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite);}
 
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--ink);border:1px solid var(--ink);}
-  .card{background:var(--paper);padding:22px;display:flex;flex-direction:column;gap:10px;position:relative;}
+  .card{background:var(--paper);padding:22px;display:flex;flex-direction:column;gap:10px;position:relative;cursor:pointer;}
+  .card-desc{font-size:12px;color:var(--graphite);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;}
   .tyre-icon{width:76px;height:76px;flex:none;}
   .season-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 7px;border-radius:2px;align-self:flex-start;border:1px solid var(--ink);}
@@ -185,12 +186,37 @@
   .form-field{display:flex;flex-direction:column;gap:6px;}
   .form-field.full{grid-column:1/-1;}
   .form-field label{font-size:12px;color:var(--graphite);}
-  .form-field input,.form-field select{padding:9px 10px;border:1px solid var(--graphite-light);border-radius:var(--radius);font-size:14px;font-family:'IBM Plex Sans',sans-serif;}
+  .form-field input,.form-field select,.form-field textarea{padding:9px 10px;border:1px solid var(--graphite-light);border-radius:var(--radius);font-size:14px;font-family:'IBM Plex Sans',sans-serif;}
+  .form-field textarea{resize:vertical;line-height:1.6;}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
   .btn-primary{background:var(--ink);color:var(--paper);border:none;padding:10px 20px;border-radius:var(--radius);font-weight:600;font-size:14px;}
   .btn-ghost{background:none;border:1px solid var(--graphite-light);padding:10px 20px;border-radius:var(--radius);font-size:14px;}
   .error-text{color:var(--brake);font-size:13px;margin-top:8px;}
   .hint-text{color:var(--graphite);font-size:12px;margin-top:10px;}
+
+  /* TERMÉK RÉSZLETEK POP-UP */
+  .pd-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+  .pd-image-wrap{
+    background:var(--concrete);border-radius:var(--radius);overflow:hidden;
+    display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;
+  }
+  .pd-image-wrap .tyre-icon{width:50%;height:50%;}
+  .pd-image{width:100%;height:100%;object-fit:cover;cursor:zoom-in;}
+  .pd-info{display:flex;flex-direction:column;gap:10px;}
+  .pd-tags{display:flex;gap:8px;}
+  .pd-size{font-family:'IBM Plex Mono',monospace;font-size:17px;background:var(--concrete);display:inline-block;padding:5px 10px;border-radius:2px;width:fit-content;}
+  .pd-specs{font-size:13px;color:var(--graphite);display:flex;gap:14px;}
+  .pd-price{font-size:26px;font-weight:700;margin-top:6px;}
+  .pd-description{font-size:14px;line-height:1.7;color:var(--ink);white-space:pre-wrap;}
+  #pdAddBtn{margin-top:auto;align-self:flex-start;}
+  @media (max-width:700px){
+    .pd-grid{grid-template-columns:1fr;}
+  }
+
+  /* KÉP NAGYBAN (lightbox) */
+  .lightbox-overlay{z-index:200;background:rgba(10,11,13,0.9);}
+  .lightbox-image{max-width:92vw;max-height:88vh;object-fit:contain;border-radius:var(--radius);cursor:zoom-out;}
+  .lightbox-close{position:fixed;top:18px;right:22px;color:#fff;font-size:34px;}
   .pf-image-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
   .pf-image-row img{width:64px;height:64px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--ink);}
   .pf-image-placeholder{font-size:12px;color:var(--graphite-light);}
@@ -570,6 +596,36 @@
   </div>
 </footer>
 
+<!-- TERMÉK RÉSZLETEK -->
+<div class="overlay" id="productDetailOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h3 id="pdTitle"></h3><button class="modal-close" data-close="productDetailOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="pd-grid">
+        <div class="pd-image-wrap" id="pdImageWrap"></div>
+        <div class="pd-info">
+          <div class="pd-tags">
+            <span class="season-tag" id="pdSeasonTag"></span>
+            <span class="vehicle-tag" id="pdVehicleTag"></span>
+          </div>
+          <div class="pd-size" id="pdSize"></div>
+          <div class="pd-specs" id="pdSpecs"></div>
+          <div class="pd-price" id="pdPrice"></div>
+          <div class="pd-stock" id="pdStock"></div>
+          <div class="pd-description" id="pdDescription"></div>
+          <button class="btn-primary" id="pdAddBtn">Kosárba</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KÉP NAGYBAN -->
+<div class="overlay lightbox-overlay" id="imageLightboxOverlay">
+  <button class="modal-close lightbox-close" data-close="imageLightboxOverlay">×</button>
+  <img id="lightboxImage" class="lightbox-image" alt="">
+</div>
+
 <!-- KOSÁR -->
 <div class="overlay" id="cartOverlay">
   <div class="modal">
@@ -811,6 +867,10 @@
         <div class="form-field"><label>Készlet (db)</label><input id="pfStock" type="number"></div>
         <div class="form-field"><label>Sebességindex</label><input id="pfSpeed" placeholder="pl. V"></div>
         <div class="form-field"><label>Terhelésindex</label><input id="pfLoad" placeholder="pl. 91"></div>
+        <div class="form-field full">
+          <label>Leírás</label>
+          <textarea id="pfDescription" rows="4" placeholder="Rövid leírás a termékről — ez jelenik meg a termék kártyáján kivonatolva, és teljes egészében a felugró ablakban."></textarea>
+        </div>
         <div class="form-field full">
           <label>Kép</label>
           <div class="pf-image-row">
@@ -1169,6 +1229,11 @@ function tyreIconSVG(season){
 function seasonLabel(s){ return s==='summer'?'Nyári':s==='winter'?'Téli':'Négyévszakos'; }
 function seasonClass(s){ return s==='summer'?'season-summer':s==='winter'?'season-winter':'season-all'; }
 function vehicleTypeLabel(v){ return v==='truck'?'Teherautó':'Személyautó'; }
+function excerpt(text, wordCount){
+  const words = text.trim().split(/\s+/);
+  if(words.length<=wordCount) return text;
+  return words.slice(0, wordCount).join(' ') + '…';
+}
 
 function getFilteredProducts(){
   let list = products.slice();
@@ -1223,6 +1288,7 @@ function renderGrid(){
       <div class="card-model">${p.model}</div>
       <div class="card-size">${p.width}/${p.profile} R${p.rim}</div>
       <div class="card-specs"><span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span></div>
+      ${p.description?`<div class="card-desc">${excerpt(p.description, 14)}</div>`:''}
       <div class="card-bottom">
         <div>
           <div class="card-price">${fmt(p.price)}</div>
@@ -1233,12 +1299,64 @@ function renderGrid(){
     </div>`;
   }).join('');
 
-  grid.querySelectorAll('.add-btn:not([disabled])').forEach(btn=>btn.addEventListener('click', ()=>addToCart(btn.dataset.id)));
+  grid.querySelectorAll('.add-btn:not([disabled])').forEach(btn=>btn.addEventListener('click', (e)=>{ e.stopPropagation(); addToCart(btn.dataset.id); }));
   if(isAdmin){
-    grid.querySelectorAll('.edit-card').forEach(btn=>btn.addEventListener('click', ()=>openProductForm(btn.dataset.id)));
-    grid.querySelectorAll('.del-card').forEach(btn=>btn.addEventListener('click', ()=>deleteProduct(btn.dataset.id)));
+    grid.querySelectorAll('.edit-card').forEach(btn=>btn.addEventListener('click', (e)=>{ e.stopPropagation(); openProductForm(btn.dataset.id); }));
+    grid.querySelectorAll('.del-card').forEach(btn=>btn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteProduct(btn.dataset.id); }));
   }
+  grid.querySelectorAll('.card').forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('button')) return;
+      openProductDetail(card.dataset.id);
+    });
+  });
 }
+
+function openProductDetail(id){
+  const p = products.find(pp=>pp.id===id);
+  if(!p) return;
+
+  document.getElementById('pdTitle').textContent = `${p.brand} ${p.model}`;
+
+  const imgWrap = document.getElementById('pdImageWrap');
+  if(p.image){
+    imgWrap.innerHTML = `<img class="pd-image" src="${p.image}" alt="${p.brand} ${p.model}">`;
+    imgWrap.querySelector('.pd-image').addEventListener('click', ()=>openLightbox(p.image, `${p.brand} ${p.model}`));
+  } else {
+    imgWrap.innerHTML = tyreIconSVG(p.season);
+  }
+
+  document.getElementById('pdSeasonTag').textContent = seasonLabel(p.season);
+  document.getElementById('pdSeasonTag').className = `season-tag ${seasonClass(p.season)}`;
+  document.getElementById('pdVehicleTag').textContent = vehicleTypeLabel(p.vehicleType);
+  document.getElementById('pdSize').textContent = `${p.width}/${p.profile} R${p.rim}`;
+  document.getElementById('pdSpecs').innerHTML = `<span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span>`;
+  document.getElementById('pdPrice').textContent = fmt(p.price);
+
+  const outOfStock = p.stock<=0;
+  const stockEl = document.getElementById('pdStock');
+  stockEl.textContent = outOfStock ? 'Elfogyott' : p.stock+' db készleten';
+  stockEl.className = `pd-stock card-stock ${outOfStock?'low':''}`;
+
+  const descEl = document.getElementById('pdDescription');
+  descEl.textContent = p.description || '';
+  descEl.style.display = p.description ? 'block' : 'none';
+
+  const addBtn = document.getElementById('pdAddBtn');
+  addBtn.disabled = outOfStock;
+  addBtn.textContent = outOfStock ? 'Nem elérhető' : 'Kosárba';
+  addBtn.onclick = ()=>addToCart(p.id);
+
+  openOverlay('productDetailOverlay');
+}
+
+function openLightbox(src, alt){
+  const img = document.getElementById('lightboxImage');
+  img.src = src;
+  img.alt = alt;
+  openOverlay('imageLightboxOverlay');
+}
+document.getElementById('lightboxImage').addEventListener('click', ()=>closeOverlay('imageLightboxOverlay'));
 
 function onFilterChange(){
   activeSeasonFilters = [...document.querySelectorAll('.season-filter:checked')].map(cb=>cb.value);
@@ -1823,6 +1941,7 @@ function openProductForm(id){
   document.getElementById('pfStock').value = p ? p.stock : '';
   document.getElementById('pfSpeed').value = p ? (p.speed||'') : '';
   document.getElementById('pfLoad').value = p ? (p.load||'') : '';
+  document.getElementById('pfDescription').value = p ? (p.description||'') : '';
   pfImageFile = null;
   pfImageRemoved = false;
   pfImagePreviewUrl = p ? (p.image || null) : null;
@@ -1860,6 +1979,7 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
   formData.append('stock', stock);
   formData.append('speed', document.getElementById('pfSpeed').value.trim());
   formData.append('loadIndex', document.getElementById('pfLoad').value.trim());
+  formData.append('description', document.getElementById('pfDescription').value.trim());
   if(pfImageFile){
     formData.append('image', pfImageFile);
   } else if(pfImageRemoved){

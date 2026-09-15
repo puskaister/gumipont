@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS products (
   stock       INT NOT NULL DEFAULT 0,
   speed       VARCHAR(10) NULL,
   load_index  VARCHAR(10) NULL,
-  image       VARCHAR(255) NULL
+  image       VARCHAR(255) NULL,
+  description TEXT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS orders (
