@@ -6,6 +6,7 @@ const SETTINGS_DEFAULTS = [
     'shipping'     => ['courier' => 15, 'pickup' => 0],
     'bulkDiscount' => ['minQty' => 0, 'percent' => 0],
     'navOrder'     => [],
+    'hiddenNavIds' => [],
 ];
 
 function get_setting(mysqli $mysqli, string $key) {

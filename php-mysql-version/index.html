@@ -273,6 +273,12 @@
     color:var(--graphite-light);font-size:14px;line-height:1;padding:0 2px;
   }
   .page-tab .tab-close:hover{color:var(--brake);}
+  .page-tab .tab-hide{
+    color:var(--graphite-light);font-size:10px;line-height:1;padding:0 2px;
+    text-decoration:underline;text-underline-offset:2px;
+  }
+  .page-tab .tab-hide:hover{color:var(--ink);}
+  .page-tab.tab-hidden{opacity:.5;font-style:italic;}
   .page-nav-toggle{display:none;}
 
   /* EXCEL VIEW */
@@ -2186,22 +2192,46 @@ async function saveNavOrder(ids){
   }
 }
 
+async function toggleNavHidden(id){
+  const hidden = new Set(siteSettings.hiddenNavIds);
+  if(hidden.has(id)) hidden.delete(id); else hidden.add(id);
+  const hiddenNavIds = [...hidden];
+  siteSettings.hiddenNavIds = hiddenNavIds;
+  renderPageNav();
+  try{
+    await apiJson('settings/update.php', 'POST', { hiddenNavIds });
+  }catch(err){
+    alert('Nem sikerült menteni a menü láthatóságát: ' + err.message);
+  }
+}
+
 function renderPageNav(){
   const nav = document.getElementById('pageNav');
-  const tabs = orderedNavTabs();
-  nav.innerHTML = tabs.map(t => `
-    <button class="page-tab ${activePageId===t.id?'active':''}" data-page="${t.id}" ${isAdmin?'draggable="true"':''}>
+  const allTabs = orderedNavTabs();
+  const tabs = isAdmin ? allTabs : allTabs.filter(t => !siteSettings.hiddenNavIds.includes(t.id));
+  nav.innerHTML = tabs.map(t => {
+    const hidden = siteSettings.hiddenNavIds.includes(t.id);
+    return `
+    <button class="page-tab ${activePageId===t.id?'active':''} ${hidden?'tab-hidden':''}" data-page="${t.id}" ${isAdmin?'draggable="true"':''}>
       ${t.label}
+      ${isAdmin && t.id!=='shop'?`<span class="tab-hide" data-toggle-hide="${t.id}">${hidden?'Mutat':'Elrejt'}</span>`:''}
       ${isAdmin && t.deletable?`<span class="tab-close" data-del-page="${t.id}">×</span>`:''}
-    </button>`).join('');
+    </button>`;
+  }).join('');
   document.getElementById('pageNavCurrentLabel').textContent = pageLabel(activePageId);
 
   nav.querySelectorAll('.page-tab').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
-      if(e.target.dataset.delPage) return;
+      if(e.target.dataset.delPage || e.target.dataset.toggleHide) return;
       switchPage(btn.dataset.page);
       nav.classList.remove('open');
       document.getElementById('pageNavToggle').setAttribute('aria-expanded', 'false');
+    });
+  });
+  nav.querySelectorAll('[data-toggle-hide]').forEach(x=>{
+    x.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleNavHidden(x.dataset.toggleHide);
     });
   });
   nav.querySelectorAll('[data-del-page]').forEach(x=>{
@@ -2436,6 +2466,7 @@ const DEFAULT_SETTINGS = {
   shipping: { courier: 15, pickup: 0 },
   bulkDiscount: { minQty: 0, percent: 0 },
   navOrder: [],
+  hiddenNavIds: [],
 };
 let siteSettings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 
@@ -2448,6 +2479,7 @@ async function loadSettings(){
       shipping: s.shipping ?? {...DEFAULT_SETTINGS.shipping},
       bulkDiscount: s.bulkDiscount ?? {...DEFAULT_SETTINGS.bulkDiscount},
       navOrder: Array.isArray(s.navOrder) ? s.navOrder : [...DEFAULT_SETTINGS.navOrder],
+      hiddenNavIds: Array.isArray(s.hiddenNavIds) ? s.hiddenNavIds : [...DEFAULT_SETTINGS.hiddenNavIds],
     };
   }catch(e){
     console.error('Nem sikerült betölteni a beállításokat:', e);
