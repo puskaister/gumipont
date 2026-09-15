@@ -130,6 +130,12 @@
   /* LAYOUT */
   .shop{display:grid;grid-template-columns:220px 1fr;gap:40px;padding:44px 0 80px;}
   .sidebar h3{font-size:26px;margin-bottom:14px;}
+  .booking-cta{
+    display:block;text-align:center;background:var(--signal);color:var(--paper);
+    padding:12px 16px;border-radius:var(--radius);font-weight:600;font-size:14px;
+    text-decoration:none;margin-bottom:24px;
+  }
+  .booking-cta:hover{filter:brightness(0.95);}
   .filter-group{margin-bottom:28px;}
   .filter-group .flabel{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;}
   .check-row{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:8px;cursor:pointer;}
@@ -488,6 +494,7 @@
 <div class="wrap">
   <div class="shop">
     <aside class="sidebar">
+      <a class="booking-cta" href="https://idopontfoglalas.gumiszervizem.hu/szervizek/gumipontszervizkft/booking" target="_blank" rel="noopener noreferrer">Időpontfoglalás</a>
       <h3>Szűrés</h3>
       <div class="filter-group">
         <div class="flabel">ÉVSZAK</div>
