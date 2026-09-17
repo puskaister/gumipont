@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/../bootstrap.php';
 require __DIR__ . '/../lib/settings.php';
+require __DIR__ . '/../lib/mailer.php';
 
 require_method('POST');
 
@@ -117,14 +118,14 @@ $orderItems = array_map(fn ($it) => [
     'order_id' => $orderId, 'product_id' => $it['productId'], 'qty' => $it['qty'], 'unit_price' => $it['unitPrice'],
 ], $resolved);
 
-notify_new_order($orderId, $order, $resolved, $deliveryMethod, $paymentMethod);
+notify_new_order($config, $orderId, $order, $resolved, $deliveryMethod, $paymentMethod);
 
 respond(['order' => $order, 'items' => $orderItems], 201);
 
-// Értesítő email az admin címre minden új rendelésnél — ugyanazt a mail()
-// alapú mintát követi, mint az auth/forgot_password.php, hogy megosztott
-// tárhelyen se legyen szükség külön SMTP-beállításra.
-function notify_new_order(int $orderId, array $order, array $items, string $deliveryMethod, string $paymentMethod): void {
+// Értesítő email az admin címre minden új rendelésnél — az api/config.php
+// 'smtp' beállításán keresztül (ha ki van töltve), különben a natív mail()
+// függvényre esik vissza (lásd api/lib/mailer.php).
+function notify_new_order(array $config, int $orderId, array $order, array $items, string $deliveryMethod, string $paymentMethod): void {
     $to = 'puskaisandor@gmail.com';
 
     $deliveryLabel = $deliveryMethod === 'pickup' ? 'Átvétel' : 'Futár';
@@ -153,14 +154,7 @@ function notify_new_order(int $orderId, array $order, array $items, string $deli
     $lines[] = 'Végösszeg: ' . number_format($order['total'], 0, ',', ' ');
     $messageBody = implode("\n", $lines);
 
-    $subject = mb_encode_mimeheader("Új rendelés #$orderId - gumipont.hu", 'UTF-8', 'B');
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $fromDomain = preg_replace('/^www\./', '', explode(':', $host)[0]);
-    $headers = "MIME-Version: 1.0\r\n"
-        . "Content-Type: text/plain; charset=UTF-8\r\n"
-        . "From: no-reply@$fromDomain";
-
-    $sent = @mail($to, $subject, $messageBody, $headers);
+    $sent = send_app_email($config, $to, "Új rendelés #$orderId - gumipont.hu", $messageBody);
     if (!$sent) {
         error_log("[gumipont uj rendeles ertesito] Nem sikerult emailt kuldeni a(z) #$orderId rendelesrol");
     }

@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/../bootstrap.php';
+require __DIR__ . '/../lib/mailer.php';
 
 require_method('POST');
 require_auth_rate_limit($mysqli);
@@ -34,14 +35,9 @@ if ($user) {
     $basePath = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '', 3), '/');
     $resetUrl = "$scheme://$host$basePath/index.html?resetToken=$token";
 
-    $subject = mb_encode_mimeheader('Jelszó visszaállítása - gumipont.hu', 'UTF-8', 'B');
     $messageBody = "Szia!\n\nJelszó-visszaállítást kértél. Nyisd meg az alábbi linket (1 órán belül érvényes):\n\n$resetUrl\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.";
-    $fromDomain = preg_replace('/^www\./', '', explode(':', $host)[0]);
-    $headers = "MIME-Version: 1.0\r\n"
-        . "Content-Type: text/plain; charset=UTF-8\r\n"
-        . "From: no-reply@$fromDomain";
 
-    $sent = @mail($email, $subject, $messageBody, $headers);
+    $sent = send_app_email($config, $email, 'Jelszó visszaállítása - gumipont.hu', $messageBody);
     if (!$sent) {
         // A legtöbb megosztott tárhelyen a mail() működik, de helyi/teszt
         // környezetben (nincs beállítva sendmail/SMTP) nem biztos. Ilyenkor

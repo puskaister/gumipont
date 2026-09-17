@@ -13,4 +13,19 @@ return [
 
     // A regisztrációkor kapott munkamenet-cookie ezen a néven jön létre.
     'session_name' => 'gumipont_session',
+
+    // Opcionális: ha a tárhelyed natív mail() függvénye nem kézbesít
+    // megbízhatóan (gyakori jelenség), töltsd ki a tárhelyed saját
+    // postafiókjának SMTP adataival (ugyanaz, amit egy levelezőkliensben is
+    // megadnál) — ezután a jelszó-visszaállító és az új rendelés értesítő
+    // email ezen keresztül megy ki, hitelesített kapcsolattal. Ha üresen
+    // hagyod (vagy törlöd ezt a kulcsot), a rendszer a natív mail()-re esik
+    // vissza.
+    'smtp' => [
+        'host'     => 'mail.gumipont.hu',
+        'port'     => 465, // az SMTP SSL/TLS port a tárhelyed levelező beállításaiból
+        'username' => 'gumipont@gumipont.hu',
+        'password' => 'valtoztasd-meg',
+        'from'     => 'gumipont@gumipont.hu',
+    ],
 ];
