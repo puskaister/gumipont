@@ -23,7 +23,7 @@ if (!in_array($category, ['tire', 'rim'], true)) error_response('Invalid input: 
 
 $brand = array_key_exists('brand', $_POST) ? trim((string) $_POST['brand']) : $existing['brand'];
 $model = array_key_exists('model', $_POST) ? trim((string) $_POST['model']) : $existing['model'];
-$rim = array_key_exists('rim', $_POST) ? (int) $_POST['rim'] : (int) $existing['rim'];
+$rim = array_key_exists('rim', $_POST) ? (float) $_POST['rim'] : (float) $existing['rim'];
 $vehicleType = array_key_exists('vehicleType', $_POST) ? (string) $_POST['vehicleType'] : $existing['vehicle_type'];
 $price = array_key_exists('price', $_POST) ? (float) $_POST['price'] : (float) $existing['price'];
 $stock = array_key_exists('stock', $_POST) ? (int) $_POST['stock'] : (int) $existing['stock'];
@@ -72,7 +72,7 @@ $stmt = $mysqli->prepare(
     'UPDATE products SET category=?, brand=?, model=?, width=?, profile=?, rim=?, hole_count=?, pcd=?, season=?, vehicle_type=?, price=?, stock=?, speed=?, load_index=?, image=?, description=? WHERE id=?'
 );
 $stmt->bind_param(
-    'sssiiiisssdissssi',
+    'sssiidisssdissssi',
     $category, $brand, $model, $width, $profile, $rim, $holeCount, $pcd, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description, $id
 );
 $stmt->execute();

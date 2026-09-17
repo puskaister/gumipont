@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS products (
   model       VARCHAR(120) NOT NULL,
   width       INT NULL,
   profile     INT NULL,
-  rim         INT NOT NULL,
+  rim         DECIMAL(4,1) NOT NULL,
   hole_count  INT NULL,
   pcd         VARCHAR(10) NULL,
   season      ENUM('summer','winter','all-season') NULL,

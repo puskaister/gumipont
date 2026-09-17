@@ -11,7 +11,7 @@ $types = '';
 if (isset($_GET['category']) && $_GET['category'] !== '') { $where[] = 'category = ?'; $params[] = (string) $_GET['category']; $types .= 's'; }
 if (isset($_GET['width']) && $_GET['width'] !== '') { $where[] = 'width = ?'; $params[] = (int) $_GET['width']; $types .= 'i'; }
 if (isset($_GET['profile']) && $_GET['profile'] !== '') { $where[] = 'profile = ?'; $params[] = (int) $_GET['profile']; $types .= 'i'; }
-if (isset($_GET['rim']) && $_GET['rim'] !== '') { $where[] = 'rim = ?'; $params[] = (int) $_GET['rim']; $types .= 'i'; }
+if (isset($_GET['rim']) && $_GET['rim'] !== '') { $where[] = 'rim = ?'; $params[] = (float) $_GET['rim']; $types .= 'd'; }
 if (isset($_GET['holeCount']) && $_GET['holeCount'] !== '') { $where[] = 'hole_count = ?'; $params[] = (int) $_GET['holeCount']; $types .= 'i'; }
 if (isset($_GET['pcd']) && $_GET['pcd'] !== '') { $where[] = 'pcd = ?'; $params[] = (string) $_GET['pcd']; $types .= 's'; }
 if (isset($_GET['season']) && $_GET['season'] !== '') { $where[] = 'season = ?'; $params[] = (string) $_GET['season']; $types .= 's'; }
@@ -36,7 +36,7 @@ foreach ($rows as $row) {
         'model' => $row['model'],
         'width' => $row['width'] !== null ? (int) $row['width'] : null,
         'profile' => $row['profile'] !== null ? (int) $row['profile'] : null,
-        'rim' => (int) $row['rim'],
+        'rim' => (float) $row['rim'],
         'holeCount' => $row['hole_count'] !== null ? (int) $row['hole_count'] : null,
         'pcd' => $row['pcd'],
         'season' => $row['season'],
