@@ -117,4 +117,51 @@ $orderItems = array_map(fn ($it) => [
     'order_id' => $orderId, 'product_id' => $it['productId'], 'qty' => $it['qty'], 'unit_price' => $it['unitPrice'],
 ], $resolved);
 
+notify_new_order($orderId, $order, $resolved, $deliveryMethod, $paymentMethod);
+
 respond(['order' => $order, 'items' => $orderItems], 201);
+
+// Értesítő email az admin címre minden új rendelésnél — ugyanazt a mail()
+// alapú mintát követi, mint az auth/forgot_password.php, hogy megosztott
+// tárhelyen se legyen szükség külön SMTP-beállításra.
+function notify_new_order(int $orderId, array $order, array $items, string $deliveryMethod, string $paymentMethod): void {
+    $to = 'puskaisandor@gmail.com';
+
+    $deliveryLabel = $deliveryMethod === 'pickup' ? 'Átvétel' : 'Futár';
+    $paymentLabel = ['card' => 'Kártya', 'transfer' => 'Átutalás', 'cash' => 'Készpénz'][$paymentMethod] ?? $paymentMethod;
+
+    $lines = [];
+    $lines[] = "Új rendelés érkezett - #$orderId";
+    $lines[] = '';
+    $lines[] = 'Vevő: ' . $order['customer_name'];
+    $lines[] = 'Email: ' . $order['customer_email'];
+    $lines[] = 'Telefonszám: ' . $order['customer_phone'];
+    $lines[] = 'Szállítási cím: ' . ($order['shipping_address'] !== '' ? $order['shipping_address'] : '-');
+    $lines[] = "Szállítási mód: $deliveryLabel";
+    $lines[] = "Fizetési mód: $paymentLabel";
+    $lines[] = '';
+    $lines[] = 'Tételek:';
+    foreach ($items as $it) {
+        $lineTotal = number_format($it['unitPrice'] * $it['qty'], 0, ',', ' ');
+        $unitPrice = number_format($it['unitPrice'], 0, ',', ' ');
+        $lines[] = "  - {$it['brand']} {$it['model']} x{$it['qty']} @ $unitPrice = $lineTotal";
+    }
+    $lines[] = '';
+    $lines[] = 'Részösszeg: ' . number_format($order['subtotal'], 0, ',', ' ');
+    $lines[] = 'Kedvezmény: ' . number_format($order['discount'], 0, ',', ' ');
+    $lines[] = 'Szállítási díj: ' . number_format($order['shipping_cost'], 0, ',', ' ');
+    $lines[] = 'Végösszeg: ' . number_format($order['total'], 0, ',', ' ');
+    $messageBody = implode("\n", $lines);
+
+    $subject = mb_encode_mimeheader("Új rendelés #$orderId - gumipont.hu", 'UTF-8', 'B');
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $fromDomain = preg_replace('/^www\./', '', explode(':', $host)[0]);
+    $headers = "MIME-Version: 1.0\r\n"
+        . "Content-Type: text/plain; charset=UTF-8\r\n"
+        . "From: no-reply@$fromDomain";
+
+    $sent = @mail($to, $subject, $messageBody, $headers);
+    if (!$sent) {
+        error_log("[gumipont uj rendeles ertesito] Nem sikerult emailt kuldeni a(z) #$orderId rendelesrol");
+    }
+}
