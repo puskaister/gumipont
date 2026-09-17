@@ -351,6 +351,12 @@
     padding:12px 14px;font-size:14px;line-height:1.7;
   }
   .rte-content:focus{outline:2px solid var(--signal);outline-offset:1px;}
+  .rte-html-source{
+    width:100%;box-sizing:border-box;border:1px solid var(--graphite-light);border-radius:var(--radius);
+    min-height:150px;max-height:340px;padding:12px 14px;font-size:13px;line-height:1.6;
+    font-family:'IBM Plex Mono',monospace;resize:vertical;
+  }
+  .rte-html-source:focus{outline:2px solid var(--signal);outline-offset:1px;}
   .rte-content img, .about-text img, .contact-note img{max-width:100%;border-radius:3px;margin:12px 0;display:block;}
   .rte-content h1{font-family:'IBM Plex Sans',sans-serif;font-size:30px;font-weight:700;margin:16px 0 8px;}
   .rte-content h2{font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:700;margin:14px 0 6px;}
@@ -2576,6 +2582,36 @@ function wireEditor(toolbarId, editorId, imgInputId){
         el.replaceWith(span);
       });
     });
+  });
+
+  // HTML forrás nézet: a szerkesztő és egy textarea között váltunk, a
+  // textarea tartalma minden gépelésnél visszaíródik az editor.innerHTML-be,
+  // így a mentés gomb (ami mindig editor.innerHTML-t olvassa) akkor is a
+  // legfrissebb HTML-t menti, ha nyitva marad a forrás nézet.
+  const htmlBtn = document.createElement('button');
+  htmlBtn.type = 'button';
+  htmlBtn.textContent = 'HTML forrás';
+  toolbar.appendChild(htmlBtn);
+
+  const source = document.createElement('textarea');
+  source.className = 'rte-html-source';
+  source.style.display = 'none';
+  editor.insertAdjacentElement('afterend', source);
+  source.addEventListener('input', ()=>{ editor.innerHTML = source.value; });
+
+  htmlBtn.addEventListener('click', ()=>{
+    const showingSource = source.style.display !== 'none';
+    if(showingSource){
+      editor.innerHTML = source.value;
+      source.style.display = 'none';
+      editor.style.display = '';
+      htmlBtn.textContent = 'HTML forrás';
+    } else {
+      source.value = editor.innerHTML;
+      source.style.display = 'block';
+      editor.style.display = 'none';
+      htmlBtn.textContent = 'Vissza a szerkesztőhöz';
+    }
   });
 }
 wireEditor('aboutToolbar', 'aboutEditor', 'aboutImgInput');
