@@ -186,6 +186,7 @@
   .overlay.open{display:flex;}
   .modal{background:var(--paper);width:100%;max-width:440px;border-radius:var(--radius);border:1px solid var(--ink);max-height:88vh;overflow-y:auto;}
   .modal.wide{max-width:760px;}
+  .modal.order-detail-modal{max-width:1140px;}
   .modal-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--concrete);}
   .modal-head h3{font-size:26px;}
   .modal-close{background:none;border:none;font-size:22px;line-height:1;color:var(--graphite);}
@@ -874,7 +875,7 @@
 
 <!-- RENDELÉS RÉSZLETEI -->
 <div class="overlay" id="orderDetailOverlay">
-  <div class="modal wide">
+  <div class="modal wide order-detail-modal">
     <div class="modal-head"><h3 id="odTitle">Rendelés</h3><button class="modal-close" data-close="orderDetailOverlay">×</button></div>
     <div class="modal-body">
       <div class="form-grid">
