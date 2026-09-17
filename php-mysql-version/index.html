@@ -237,6 +237,11 @@
   .admin-table th{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);font-weight:500;}
   .admin-table button{background:none;border:none;font-size:12px;text-decoration:underline;padding:0;margin-right:10px;}
   .admin-table button.del{color:var(--brake);}
+  .admin-table tr.row-clickable{cursor:pointer;}
+  .admin-table tr.row-clickable:hover{background:var(--concrete);}
+  .od-summary{margin-top:14px;max-width:320px;margin-left:auto;display:flex;flex-direction:column;gap:6px;font-size:14px;}
+  .od-summary > div{display:flex;justify-content:space-between;gap:12px;}
+  .od-summary .od-total{font-weight:700;font-size:18px;border-top:1px solid var(--ink);padding-top:8px;margin-top:4px;}
   .admin-bar{background:var(--signal);color:var(--paper);}
   .admin-bar .wrap{display:flex;justify-content:space-between;align-items:center;padding:10px 24px;font-size:13px;flex-wrap:wrap;gap:8px;}
   .admin-bar button{background:var(--ink);color:var(--paper);border:none;padding:7px 14px;border-radius:var(--radius);font-size:12px;margin-left:8px;}
@@ -862,6 +867,39 @@
         </table>
       </div>
       <div class="hint-text" id="ordersEmpty" style="display:none;">Még nem érkezett rendelés.</div>
+      <div class="hint-text">Kattints egy sorra a rendelés teljes adatainak megnyitásához.</div>
+    </div>
+  </div>
+</div>
+
+<!-- RENDELÉS RÉSZLETEI -->
+<div class="overlay" id="orderDetailOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h3 id="odTitle">Rendelés</h3><button class="modal-close" data-close="orderDetailOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field"><label>Dátum</label><div id="odDate"></div></div>
+        <div class="form-field"><label>Státusz</label><div id="odStatus"></div></div>
+        <div class="form-field"><label>Vevő neve</label><div id="odName"></div></div>
+        <div class="form-field"><label>Email</label><div id="odEmail"></div></div>
+        <div class="form-field"><label>Telefonszám</label><div id="odPhone"></div></div>
+        <div class="form-field"><label>Szállítási cím</label><div id="odAddress"></div></div>
+        <div class="form-field"><label>Szállítási mód</label><div id="odDelivery"></div></div>
+        <div class="form-field"><label>Fizetési mód</label><div id="odPayment"></div></div>
+      </div>
+
+      <h4 style="margin:22px 0 10px;">Rendelt tételek</h4>
+      <table class="admin-table">
+        <thead><tr><th>Márka</th><th>Típus</th><th>Darab</th><th>Egységár</th><th>Részösszeg</th></tr></thead>
+        <tbody id="odItemsBody"></tbody>
+      </table>
+
+      <div class="od-summary">
+        <div><span>Részösszeg</span><span id="odSubtotal"></span></div>
+        <div><span>Kedvezmény</span><span id="odDiscount"></span></div>
+        <div><span>Szállítási díj</span><span id="odShipping"></span></div>
+        <div class="od-total"><span>Végösszeg</span><span id="odTotal"></span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1928,6 +1966,8 @@ function orderStatusLabel(s){
   return { new:'Új', confirmed:'Visszaigazolva', shipped:'Kiszállítva', done:'Lezárva' }[s] || s;
 }
 
+let ordersList = [];
+
 document.getElementById('ordersBtn').addEventListener('click', async ()=>{
   openOverlay('ordersOverlay');
   await renderOrdersTable();
@@ -1946,6 +1986,7 @@ async function renderOrdersTable(){
     emptyEl.style.display = 'block';
     return;
   }
+  ordersList = orders;
   emptyEl.style.display = orders.length ? 'none' : 'block';
   emptyEl.textContent = 'Még nem érkezett rendelés.';
   tbody.innerHTML = orders.map(o=>{
@@ -1954,7 +1995,7 @@ async function renderOrdersTable(){
       .join(', ') || '—';
     const date = new Date(o.created_at).toLocaleString('hu-HU');
     const contact = [escapeHtml(o.customer_email), escapeHtml(o.customer_phone)].filter(Boolean).join('<br>');
-    return `<tr>
+    return `<tr class="row-clickable" data-order-id="${o.id}">
       <td class="mono">#${o.id}</td>
       <td class="mono">${date}</td>
       <td>${escapeHtml(o.customer_name) || '—'}</td>
@@ -1966,6 +2007,40 @@ async function renderOrdersTable(){
       <td>${orderStatusLabel(o.status)}</td>
     </tr>`;
   }).join('');
+  tbody.querySelectorAll('tr[data-order-id]').forEach(row=>{
+    row.addEventListener('click', ()=>openOrderDetail(row.dataset.orderId));
+  });
+}
+
+function openOrderDetail(id){
+  const o = ordersList.find(oo=>String(oo.id)===String(id));
+  if(!o) return;
+
+  document.getElementById('odTitle').textContent = `Rendelés #${o.id}`;
+  document.getElementById('odDate').textContent = new Date(o.created_at).toLocaleString('hu-HU');
+  document.getElementById('odStatus').textContent = orderStatusLabel(o.status);
+  document.getElementById('odName').textContent = o.customer_name || '—';
+  document.getElementById('odEmail').textContent = o.customer_email || '—';
+  document.getElementById('odPhone').textContent = o.customer_phone || '—';
+  document.getElementById('odAddress').textContent = o.shipping_address || '—';
+  document.getElementById('odDelivery').textContent = deliveryLabel(o.delivery_method);
+  document.getElementById('odPayment').textContent = paymentLabel(o.payment_method);
+
+  document.getElementById('odItemsBody').innerHTML = (o.items||[]).map(it=>`
+    <tr>
+      <td>${escapeHtml(it.brand||'?')}</td>
+      <td>${escapeHtml(it.model||'')}</td>
+      <td>${it.qty}</td>
+      <td>${fmt(it.unitPrice)}</td>
+      <td>${fmt(it.unitPrice*it.qty)}</td>
+    </tr>`).join('') || '<tr><td colspan="5">Nincs tétel.</td></tr>';
+
+  document.getElementById('odSubtotal').textContent = fmt(o.subtotal);
+  document.getElementById('odDiscount').textContent = o.discount>0 ? '-'+fmt(o.discount) : fmt(0);
+  document.getElementById('odShipping').textContent = fmt(o.shipping_cost);
+  document.getElementById('odTotal').textContent = fmt(o.total);
+
+  openOverlay('orderDetailOverlay');
 }
 
 // A termékkép mostantól valódi fájlként (multipart/form-data) megy fel a
