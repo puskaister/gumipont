@@ -1539,6 +1539,18 @@ function openLightbox(src, alt){
 }
 document.getElementById('lightboxImage').addEventListener('click', ()=>closeOverlay('imageLightboxOverlay'));
 
+// Minden nyilvánosan megjelenő tartalom-kép (Webshop bevezető, méretjelölés
+// illusztráció, Rólunk, feltételek, kapcsolat megjegyzés, feltöltött oldalak)
+// rákattintva nagy popupban (lightbox) nyílik meg — a szerkesztőn belüli
+// képekre ez NEM vonatkozik, ott a kattintás a kép kijelölését szolgálja.
+function wireContentImages(container){
+  if(!container) return;
+  container.querySelectorAll('img').forEach(img=>{
+    img.style.cursor = 'zoom-in';
+    img.addEventListener('click', ()=>openLightbox(img.src, img.alt || ''));
+  });
+}
+
 function onFilterChange(){
   activeSeasonFilters = [...document.querySelectorAll('.season-filter:checked')].map(cb=>cb.value);
   activeVehicleTypeFilters = [...document.querySelectorAll('.vehicle-filter:checked')].map(cb=>cb.value);
@@ -2514,6 +2526,7 @@ function renderExcelPage(pageId){
   document.getElementById('excelMeta').textContent='';
   document.querySelector('.excel-table-scroll').innerHTML =
     (page.content && page.content.trim()) ? page.content : '<div class="excel-empty">Ez az oldal üres.</div>';
+  wireContentImages(document.querySelector('.excel-table-scroll'));
 }
 
 /* ---- Új oldal létrehozása / meglévő oldal szerkesztése ---- */
@@ -2883,6 +2896,7 @@ wireEditor('pageEditToolbar', 'pageEditEditor', 'pageEditImgInput');
 function renderShopIntro(){
   document.getElementById('shopIntroEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
   document.getElementById('shopIntroContent').innerHTML = siteContent.shopIntro;
+  wireContentImages(document.getElementById('shopIntroContent'));
 }
 document.getElementById('shopIntroEditBtn').addEventListener('click', ()=>{
   document.getElementById('shopIntroEditor').innerHTML = siteContent.shopIntro;
@@ -2905,6 +2919,7 @@ document.getElementById('shopIntroSave').addEventListener('click', async ()=>{
 function renderHeroSize(){
   document.getElementById('heroSizeEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
   document.getElementById('heroSizeContent').innerHTML = siteContent.heroSize;
+  wireContentImages(document.getElementById('heroSizeContent'));
 }
 document.getElementById('heroSizeEditBtn').addEventListener('click', ()=>{
   document.getElementById('heroSizeEditor').innerHTML = siteContent.heroSize;
@@ -2927,6 +2942,7 @@ document.getElementById('heroSizeSave').addEventListener('click', async ()=>{
 function renderAbout(){
   document.getElementById('aboutEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
   document.getElementById('aboutText').innerHTML = siteContent.about;
+  wireContentImages(document.getElementById('aboutText'));
 }
 document.getElementById('aboutEditBtn').addEventListener('click', ()=>{
   document.getElementById('aboutEditor').innerHTML = siteContent.about;
@@ -2949,6 +2965,7 @@ document.getElementById('aboutSave').addEventListener('click', async ()=>{
 function renderTerms(){
   document.getElementById('termsEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
   document.getElementById('termsText').innerHTML = siteContent.terms;
+  wireContentImages(document.getElementById('termsText'));
 }
 document.getElementById('termsEditBtn').addEventListener('click', ()=>{
   document.getElementById('termsEditor').innerHTML = siteContent.terms;
@@ -2978,6 +2995,7 @@ function renderContact(){
   document.getElementById('contactEmail').href = 'mailto:' + c.email;
   document.getElementById('contactMap').src = 'https://www.google.com/maps?q=' + encodeURIComponent(c.address) + '&output=embed';
   document.getElementById('contactNoteView').innerHTML = c.note || '';
+  wireContentImages(document.getElementById('contactNoteView'));
 }
 document.getElementById('contactEditBtn').addEventListener('click', ()=>{
   document.getElementById('contactEditAddress').value = siteContent.contact.address;
