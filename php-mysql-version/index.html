@@ -374,6 +374,8 @@
   }
   .rte-html-source:focus{outline:2px solid var(--signal);outline-offset:1px;}
   .rte-content img, .about-text img, .contact-note img{max-width:100%;border-radius:3px;margin:12px 0;display:block;}
+  .rte-content img{cursor:pointer;resize:both;overflow:hidden;min-width:40px;min-height:40px;}
+  .rte-content img.rte-img-selected{outline:2px solid var(--signal);outline-offset:2px;}
   .rte-content h1{font-family:'IBM Plex Sans',sans-serif;font-size:30px;font-weight:700;margin:16px 0 8px;}
   .rte-content h2{font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:700;margin:14px 0 6px;}
   .rte-content h3{font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;margin:12px 0 6px;}
@@ -1090,7 +1092,7 @@
       </div>
       <div class="rte-content" id="heroSizeEditor" contenteditable="true"></div>
       <input type="file" accept="image/*" id="heroSizeImgInput" style="display:none;">
-      <div class="hint-text">A kép feltöltés gombbal lecserélheted az illusztrációt egy valódi fotóra — a törzsszöveget (kép alatti szám és leírás) szabadon szerkesztheted, a "HTML forrás" gombbal akár a formázást is finomíthatod.</div>
+      <div class="hint-text">A kép feltöltés gombbal lecserélheted az illusztrációt egy valódi fotóra — a törzsszöveget (kép alatti szám és leírás) szabadon szerkesztheted, a "HTML forrás" gombbal akár a formázást is finomíthatod. A képre kattintva kijelölheted (ekkor "Kép törlése"-vel eltávolítható), a jobb alsó sarkánál húzva pedig átméretezheted.</div>
       <div class="modal-actions">
         <button class="btn-ghost" data-close="heroSizeEditOverlay">Mégse</button>
         <button class="btn-primary" id="heroSizeSave">Mentés</button>
@@ -2722,6 +2724,20 @@ function wireEditor(toolbarId, editorId, imgInputId){
   const toolbar = document.getElementById(toolbarId);
   const editor = document.getElementById(editorId);
   const imgInput = document.getElementById(imgInputId);
+  let selectedImage = null;
+
+  // Egy képre kattintva kijelöljük (keret jelzi) — ez kell a törléshez, az
+  // átméretezéshez pedig a kép sarkán megjelenő húzófogantyú (CSS resize)
+  // szolgál, azt nem kell külön kijelölni.
+  editor.addEventListener('click', (e)=>{
+    if(selectedImage) selectedImage.classList.remove('rte-img-selected');
+    if(e.target.tagName === 'IMG'){
+      selectedImage = e.target;
+      selectedImage.classList.add('rte-img-selected');
+    } else {
+      selectedImage = null;
+    }
+  });
 
   toolbar.querySelectorAll('[data-cmd]').forEach(btn=>{
     if(btn.dataset.cmd === 'insertImage') return;
@@ -2755,6 +2771,19 @@ function wireEditor(toolbarId, editorId, imgInputId){
       e.target.value = '';
     });
   }
+
+  const deleteImgBtn = document.createElement('button');
+  deleteImgBtn.type = 'button';
+  deleteImgBtn.textContent = 'Kép törlése';
+  toolbar.appendChild(deleteImgBtn);
+  deleteImgBtn.addEventListener('click', ()=>{
+    if(selectedImage){
+      selectedImage.remove();
+      selectedImage = null;
+    } else {
+      alert('Előbb kattints a törlendő képre a szerkesztőben.');
+    }
+  });
 
   // Betűméret: a régi execCommand('fontSize') 1-7-es skálát és <font> tageket
   // ad, ezért egy trükkel (7-es méret, majd az így kapott <font size="7">
