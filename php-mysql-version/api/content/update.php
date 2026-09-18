@@ -5,7 +5,7 @@ require __DIR__ . '/../bootstrap.php';
 require_method('POST');
 require_admin($mysqli);
 
-const ALLOWED_KEYS = ['shop_intro', 'about', 'contact', 'terms'];
+const ALLOWED_KEYS = ['shop_intro', 'hero_size', 'about', 'contact', 'terms'];
 
 $body = request_body();
 $key = (string) ($body['key'] ?? '');
