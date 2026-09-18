@@ -11,14 +11,14 @@ if (!in_array($category, ['tire', 'rim'], true)) error_response('Invalid input: 
 
 $brand = trim((string) ($_POST['brand'] ?? ''));
 $model = trim((string) ($_POST['model'] ?? ''));
-$rim = (float) ($_POST['rim'] ?? 0);
+$rim = trim((string) ($_POST['rim'] ?? ''));
 $vehicleType = (string) ($_POST['vehicleType'] ?? 'car');
 $price = (float) ($_POST['price'] ?? -1);
 $stock = (int) ($_POST['stock'] ?? -1);
 $description = trim((string) ($_POST['description'] ?? ''));
 
 if ($brand === '' || $model === '') error_response('Invalid input: brand/model');
-if ($rim <= 0) error_response('Invalid input: size');
+if ($rim === '') error_response('Invalid input: size');
 if (!in_array($vehicleType, ['car', 'truck'], true)) error_response('Invalid input: vehicleType');
 if ($price < 0) error_response('Invalid input: price');
 if ($stock < 0) error_response('Invalid input: stock');
@@ -54,10 +54,10 @@ $stmt = $mysqli->prepare(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 $stmt->bind_param(
-    'sssiidisssdissss',
+    'sssiisisssdissss',
     $category, $brand, $model, $width, $profile, $rim, $holeCount, $pcd, $season, $vehicleType, $price, $stock, $speed, $loadIndex, $image, $description
 );
-// Típusjelzők sorrendben: category=s brand=s model=s width=i profile=i rim=d
+// Típusjelzők sorrendben: category=s brand=s model=s width=i profile=i rim=s
 // hole_count=i pcd=s season=s vehicleType=s price=d stock=i speed=s loadIndex=s
 // image=s description=s (16 érték -> 16 jelző). width/profile/season/hole_count/pcd
 // NULL is lehet a kategóriától függően — bind_param NULL-t is elfogad.

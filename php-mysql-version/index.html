@@ -923,7 +923,7 @@
         <div class="form-field"><label>Típus</label><input id="pfModel"></div>
         <div class="form-field pf-tire-only"><label>Szélesség (mm)</label><input id="pfWidth" type="number"></div>
         <div class="form-field pf-tire-only"><label>Profil (%)</label><input id="pfProfile" type="number"></div>
-        <div class="form-field"><label>Felni (col)</label><input id="pfRim" type="number" step="0.1" placeholder="pl. 16 vagy 22.5"></div>
+        <div class="form-field"><label>Felni (col)</label><input id="pfRim" type="text" placeholder="pl. 16, 22.5 vagy 16C"></div>
         <div class="form-field pf-rim-only"><label>Lyukak száma</label><input id="pfHoleCount" type="number" placeholder="pl. 5"></div>
         <div class="form-field pf-rim-only"><label>Osztókör</label><input id="pfPcd" placeholder="pl. 114,3"></div>
         <div class="form-field pf-tire-only">
@@ -1260,13 +1260,22 @@ function saveCart(){
 
 function uniq(arr){ return [...new Set(arr)]; }
 
+// A felni méret ("rim") mostantól szöveg (pl. "16C" a megerősített
+// gumiknál), ezért nem lehet sima számként rendezni — a numerikus rész
+// alapján rendezünk, a betűs utótagot csak döntetlen esetén nézzük.
+function compareSizeLabels(a, b){
+  const na = parseFloat(a), nb = parseFloat(b);
+  if(na !== nb) return na - nb;
+  return String(a).localeCompare(String(b));
+}
+
 function populateSpecDropdowns(){
   const widthSel = document.getElementById('fWidth');
   const profileSel = document.getElementById('fProfile');
   const rimSel = document.getElementById('fRim');
   const widths = uniq(products.map(p=>p.width).filter(w=>w!=null)).sort((a,b)=>a-b);
   const profiles = uniq(products.map(p=>p.profile).filter(p=>p!=null)).sort((a,b)=>a-b);
-  const rims = uniq(products.map(p=>p.rim).filter(r=>r!=null)).sort((a,b)=>a-b);
+  const rims = uniq(products.map(p=>p.rim).filter(r=>r!=null)).sort(compareSizeLabels);
   widthSel.innerHTML = '<option value="">Bármelyik</option>' + widths.map(w=>`<option value="${w}">${w}</option>`).join('');
   profileSel.innerHTML = '<option value="">Bármelyik</option>' + profiles.map(p=>`<option value="${p}">${p}</option>`).join('');
   rimSel.innerHTML = '<option value="">Bármelyik</option>' + rims.map(r=>`<option value="${r}">${r}</option>`).join('');
@@ -1283,7 +1292,7 @@ function populateFelniFilters(){
   const rimProducts = products.filter(p=>p.category==='rim');
   const holeCounts = uniq(rimProducts.map(p=>p.holeCount).filter(h=>h!=null)).sort((a,b)=>a-b);
   const pcds = uniq(rimProducts.map(p=>p.pcd).filter(v=>v)).sort();
-  const sizes = uniq(rimProducts.map(p=>p.rim).filter(r=>r!=null)).sort((a,b)=>a-b);
+  const sizes = uniq(rimProducts.map(p=>p.rim).filter(r=>r!=null)).sort(compareSizeLabels);
   const holeContainer = document.getElementById('holeCountFilters');
   const pcdContainer = document.getElementById('pcdFilters');
   const sizeContainer = document.getElementById('felniSizeFilters');
