@@ -2695,7 +2695,9 @@ function resizeImageFile(file, maxWidth, quality){
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        canvas.toBlob(blob=>{
+          if(blob) resolve(blob); else reject(new Error('A kép átméretezése sikertelen.'));
+        }, 'image/jpeg', quality);
       };
       img.onerror = reject;
       img.src = e.target.result;
@@ -2703,6 +2705,17 @@ function resizeImageFile(file, maxWidth, quality){
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// A szövegszerkesztőkbe beszúrt kép valódi fájlként megy fel az uploads/
+// mappába (ugyanaz a minta, mint a termékképeknél) — nem base64-ként
+// ágyazódik be a HTML-be, ami a mentett tartalmat óriásira és
+// olvashatatlanra duzzasztaná.
+async function uploadContentImage(blob){
+  const formData = new FormData();
+  formData.append('image', blob, 'image.jpg');
+  const data = await apiForm('content/upload_image.php', 'POST', formData);
+  return data.path;
 }
 
 function wireEditor(toolbarId, editorId, imgInputId){
@@ -2732,11 +2745,12 @@ function wireEditor(toolbarId, editorId, imgInputId){
       const file = e.target.files[0];
       if(!file) return;
       try{
-        const dataUrl = await resizeImageFile(file, 900, 0.85);
+        const blob = await resizeImageFile(file, 900, 0.85);
+        const path = await uploadContentImage(blob);
         editor.focus();
-        document.execCommand('insertHTML', false, `<img src="${dataUrl}">`);
+        document.execCommand('insertHTML', false, `<img src="${path}">`);
       }catch(err){
-        alert('Nem sikerült feltölteni a képet.');
+        alert('Nem sikerült feltölteni a képet: ' + err.message);
       }
       e.target.value = '';
     });
