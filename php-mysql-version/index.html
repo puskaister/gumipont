@@ -151,6 +151,14 @@
   .results-count{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite);}
 
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--ink);border:1px solid var(--ink);}
+  .pagination{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:24px;}
+  .page-btn{
+    min-width:36px;height:36px;padding:0 10px;border:1px solid var(--graphite-light);border-radius:var(--radius);
+    background:var(--paper);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:13px;
+  }
+  .page-btn:hover:not([disabled]){background:var(--concrete);}
+  .page-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);font-weight:600;}
+  .page-btn[disabled]{color:var(--graphite-light);cursor:not-allowed;}
   .card{background:var(--paper);padding:22px;padding-left:10px;display:flex;flex-direction:column;gap:10px;position:relative;cursor:pointer;}
   .card-desc{font-size:12px;color:var(--graphite);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;}
@@ -557,6 +565,7 @@
         <div class="results-count" id="resultsCount"></div>
       </div>
       <div class="grid" id="productGrid"></div>
+      <div class="pagination" id="pagination"></div>
     </main>
   </div>
 </div>
@@ -942,6 +951,7 @@
           </select>
         </div>
         <div class="form-field"><label>Ár (HUF)</label><input id="pfPrice" type="number"></div>
+        <div class="form-field"><label>Szállítási költség (HUF)</label><input id="pfShippingCost" type="number" min="0" placeholder="pl. 2000"></div>
         <div class="form-field"><label>Készlet (db)</label><input id="pfStock" type="number"></div>
         <div class="form-field pf-tire-only"><label>Sebességindex</label><input id="pfSpeed" placeholder="pl. V"></div>
         <div class="form-field pf-tire-only"><label>Terhelésindex</label><input id="pfLoad" placeholder="pl. 91"></div>
@@ -1006,12 +1016,11 @@
     <div class="modal-body">
       <div class="form-field full"><label>Pénznem jele</label><input id="settingsCurrency" placeholder="pl. €, Ft, $"></div>
       <div class="form-grid" style="margin-top:14px;">
-        <div class="form-field"><label>Szállítási díj — futár</label><input type="number" id="settingsShipCourier" min="0" step="0.01"></div>
         <div class="form-field"><label>Szállítási díj — átvétel</label><input type="number" id="settingsShipPickup" min="0" step="0.01"></div>
         <div class="form-field"><label>Tömeges kedvezmény — min. db</label><input type="number" id="settingsBulkQty" min="0" step="1"></div>
         <div class="form-field"><label>Tömeges kedvezmény — %</label><input type="number" id="settingsBulkPercent" min="0" max="100" step="1"></div>
       </div>
-      <div class="hint-text" style="margin-top:10px;">A tömeges kedvezmény 0 db / 0% esetén ki van kapcsolva.</div>
+      <div class="hint-text" style="margin-top:10px;">Futáros kiszállításnál a szállítási díj termékenként (a termék szerkesztésénél) állítható be, nem itt. A tömeges kedvezmény 0 db / 0% esetén ki van kapcsolva.</div>
       <div class="error-text" id="settingsError" style="display:none;"></div>
       <div class="modal-actions">
         <button class="btn-ghost" data-close="settingsOverlay">Mégse</button>
@@ -1372,6 +1381,9 @@ function getFilteredProducts(){
   return list;
 }
 
+const PAGE_SIZE = 9;
+let currentPage = 1;
+
 function renderGrid(){
   const list = getFilteredProducts();
   const grid = document.getElementById('productGrid');
@@ -1379,10 +1391,16 @@ function renderGrid(){
 
   if(list.length===0){
     grid.innerHTML = `<div class="empty-state"><h3>Nincs egyező találat.</h3><p>Törölj egy szűrőt, vagy próbálj más méretet keresni.</p></div>`;
+    document.getElementById('pagination').innerHTML = '';
     return;
   }
 
-  grid.innerHTML = list.map(p=>{
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  if(currentPage > totalPages) currentPage = totalPages;
+  if(currentPage < 1) currentPage = 1;
+  const pageList = list.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+
+  grid.innerHTML = pageList.map(p=>{
     const outOfStock = p.stock<=0;
     const isRim = p.category==='rim';
     return `
@@ -1424,6 +1442,30 @@ function renderGrid(){
       if(e.target.closest('button')) return;
       openProductDetail(card.dataset.id);
     });
+  });
+
+  renderPagination(totalPages);
+}
+
+function goToPage(page){
+  currentPage = page;
+  renderGrid();
+  document.getElementById('productGrid').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function renderPagination(totalPages){
+  const el = document.getElementById('pagination');
+  if(totalPages <= 1){ el.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" data-page="${currentPage-1}" ${currentPage===1?'disabled':''}>←</button>`;
+  for(let i=1; i<=totalPages; i++){
+    html += `<button class="page-btn ${i===currentPage?'active':''}" data-page="${i}">${i}</button>`;
+  }
+  html += `<button class="page-btn" data-page="${currentPage+1}" ${currentPage===totalPages?'disabled':''}>→</button>`;
+  el.innerHTML = html;
+
+  el.querySelectorAll('.page-btn:not([disabled])').forEach(btn=>{
+    btn.addEventListener('click', ()=>goToPage(Number(btn.dataset.page)));
   });
 }
 
@@ -1489,13 +1531,14 @@ function onFilterChange(){
   activeHoleCountFilters = [...document.querySelectorAll('.holecount-filter:checked')].map(cb=>cb.value);
   activePcdFilters = [...document.querySelectorAll('.pcd-filter:checked')].map(cb=>cb.value);
   activeFelniSizeFilters = [...document.querySelectorAll('.felnisize-filter:checked')].map(cb=>cb.value);
+  currentPage = 1;
   renderGrid();
 }
 
 document.querySelectorAll('.season-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
 document.querySelectorAll('.vehicle-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
-document.getElementById('priceMin').addEventListener('input', renderGrid);
-document.getElementById('priceMax').addEventListener('input', renderGrid);
+document.getElementById('priceMin').addEventListener('input', ()=>{ currentPage = 1; renderGrid(); });
+document.getElementById('priceMax').addEventListener('input', ()=>{ currentPage = 1; renderGrid(); });
 document.getElementById('resetFilters').addEventListener('click', ()=>{
   document.querySelectorAll('.season-filter, .vehicle-filter, .brand-filter, .holecount-filter, .pcd-filter, .felnisize-filter').forEach(cb=>cb.checked=false);
   document.getElementById('priceMin').value='';
@@ -1506,6 +1549,7 @@ document.getElementById('resetFilters').addEventListener('click', ()=>{
   document.getElementById('fProfile').value='';
   document.getElementById('fRim').value='';
   document.getElementById('fText').value='';
+  currentPage = 1;
   renderGrid();
 });
 
@@ -1524,12 +1568,14 @@ document.getElementById('findSizeBtn').addEventListener('click', ()=>{
   searchQuery.width = document.getElementById('fWidth').value;
   searchQuery.profile = document.getElementById('fProfile').value;
   searchQuery.rim = document.getElementById('fRim').value;
+  currentPage = 1;
   renderGrid();
   document.querySelector('.shop').scrollIntoView({behavior:'smooth'});
 });
 document.getElementById('findTextBtn').addEventListener('click', ()=>{
   searchQuery.mode='text';
   searchQuery.text = document.getElementById('fText').value;
+  currentPage = 1;
   renderGrid();
   document.querySelector('.shop').scrollIntoView({behavior:'smooth'});
 });
@@ -1906,7 +1952,6 @@ document.getElementById('createAdminSubmit').addEventListener('click', async ()=
 
 document.getElementById('settingsBtn').addEventListener('click', ()=>{
   document.getElementById('settingsCurrency').value = siteSettings.currency;
-  document.getElementById('settingsShipCourier').value = siteSettings.shipping.courier;
   document.getElementById('settingsShipPickup').value = siteSettings.shipping.pickup;
   document.getElementById('settingsBulkQty').value = siteSettings.bulkDiscount.minQty;
   document.getElementById('settingsBulkPercent').value = siteSettings.bulkDiscount.percent;
@@ -1917,7 +1962,6 @@ document.getElementById('settingsBtn').addEventListener('click', ()=>{
 document.getElementById('settingsSave').addEventListener('click', async ()=>{
   const errEl = document.getElementById('settingsError');
   const currency = document.getElementById('settingsCurrency').value.trim();
-  const shipCourier = Number(document.getElementById('settingsShipCourier').value);
   const shipPickup = Number(document.getElementById('settingsShipPickup').value);
   const bulkQty = Number(document.getElementById('settingsBulkQty').value);
   const bulkPercent = Number(document.getElementById('settingsBulkPercent').value);
@@ -1927,7 +1971,7 @@ document.getElementById('settingsSave').addEventListener('click', async ()=>{
     errEl.style.display='block';
     return;
   }
-  if([shipCourier, shipPickup, bulkQty, bulkPercent].some(n => isNaN(n) || n < 0) || bulkPercent > 100){
+  if([shipPickup, bulkQty, bulkPercent].some(n => isNaN(n) || n < 0) || bulkPercent > 100){
     errEl.textContent = 'A számok nem lehetnek negatívak, a kedvezmény % legfeljebb 100 lehet.';
     errEl.style.display='block';
     return;
@@ -1936,7 +1980,7 @@ document.getElementById('settingsSave').addEventListener('click', async ()=>{
   try{
     await apiJson('settings/update.php', 'POST', {
       currency,
-      shipping: { courier: shipCourier, pickup: shipPickup },
+      shipping: { pickup: shipPickup },
       bulkDiscount: { minQty: bulkQty, percent: bulkPercent },
     });
   }catch(e){
@@ -2117,6 +2161,7 @@ function openProductForm(id){
   document.getElementById('pfSeason').value = p && p.season ? p.season : 'summer';
   document.getElementById('pfVehicleType').value = p ? p.vehicleType : 'car';
   document.getElementById('pfPrice').value = p ? p.price : '';
+  document.getElementById('pfShippingCost').value = p ? p.shippingCost : '';
   document.getElementById('pfStock').value = p ? p.stock : '';
   document.getElementById('pfSpeed').value = p ? (p.speed||'') : '';
   document.getElementById('pfLoad').value = p ? (p.load||'') : '';
@@ -2140,11 +2185,12 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
   const holeCount = document.getElementById('pfHoleCount').value;
   const pcd = document.getElementById('pfPcd').value.trim();
   const price = document.getElementById('pfPrice').value;
+  const shippingCost = document.getElementById('pfShippingCost').value;
   const stock = document.getElementById('pfStock').value;
   const errEl = document.getElementById('pfError');
 
-  if(!brand || !model || !rim || !price || stock===''){
-    errEl.textContent = 'Töltsd ki a márkát, típust, a felni méretét, az árat és a készletet.';
+  if(!brand || !model || !rim || !price || shippingCost==='' || stock===''){
+    errEl.textContent = 'Töltsd ki a márkát, típust, a felni méretét, az árat, a szállítási költséget és a készletet.';
     errEl.style.display='block';
     return;
   }
@@ -2173,6 +2219,7 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
   formData.append('rim', rim);
   formData.append('vehicleType', document.getElementById('pfVehicleType').value);
   formData.append('price', price);
+  formData.append('shippingCost', shippingCost);
   formData.append('stock', stock);
   formData.append('description', document.getElementById('pfDescription').value.trim());
   if(isRim){
@@ -2554,7 +2601,7 @@ async function loadContent(){
 /* ---------- BEÁLLÍTÁSOK (pénznem, szállítás, tömeges kedvezmény) ---------- */
 const DEFAULT_SETTINGS = {
   currency: 'HUF',
-  shipping: { courier: 15, pickup: 0 },
+  shipping: { pickup: 0 },
   bulkDiscount: { minQty: 0, percent: 0 },
   navOrder: [],
   hiddenNavIds: [],
@@ -2582,8 +2629,13 @@ function fmt(amount){
 }
 
 function shippingCostFor(deliveryMethod){
-  const s = siteSettings.shipping;
-  return Number(deliveryMethod === 'pickup' ? s.pickup : s.courier) || 0;
+  if(deliveryMethod === 'pickup') return Number(siteSettings.shipping.pickup) || 0;
+  // Futárnál a szállítási költség a kosárban lévő termékek saját,
+  // egyenként beállított szállítási költségének összege.
+  return cart.reduce((sum,c)=>{
+    const p = products.find(pp=>pp.id===c.id);
+    return p ? sum + (Number(p.shippingCost)||0) * c.qty : sum;
+  }, 0);
 }
 
 function bulkDiscountFor(qty, subtotal){

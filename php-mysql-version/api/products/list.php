@@ -42,6 +42,7 @@ foreach ($rows as $row) {
         'season' => $row['season'],
         'vehicleType' => $row['vehicle_type'],
         'price' => (float) $row['price'],
+        'shippingCost' => (float) $row['shipping_cost'],
         'stock' => (int) $row['stock'],
         'speed' => $row['speed'],
         'loadIndex' => $row['load_index'],

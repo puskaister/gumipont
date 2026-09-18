@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS products (
   season      ENUM('summer','winter','all-season') NULL,
   vehicle_type ENUM('car','truck') NOT NULL DEFAULT 'car',
   price       DECIMAL(10,2) NOT NULL,
+  shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
   stock       INT NOT NULL DEFAULT 0,
   speed       VARCHAR(10) NULL,
   load_index  VARCHAR(10) NULL,

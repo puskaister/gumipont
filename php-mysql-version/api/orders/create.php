@@ -49,6 +49,7 @@ foreach ($items as $item) {
         'productId' => $productId,
         'qty' => $qty,
         'unitPrice' => (float) $product['price'],
+        'shippingCost' => (float) $product['shipping_cost'],
         'brand' => $product['brand'],
         'model' => $product['model'],
     ];
@@ -56,11 +57,18 @@ foreach ($items as $item) {
 
 $subtotal = array_reduce($resolved, fn ($sum, $it) => $sum + $it['unitPrice'] * $it['qty'], 0.0);
 
-// A szállítási díjat és a tömeges kedvezményt a szerver számolja a
-// beállítások alapján — a kliens sosem adhatja meg közvetlenül, különben
-// tetszőleges kedvezményt/ingyenes szállítást tudna beállítani magának.
-$shipping = get_setting($mysqli, 'shipping');
-$shippingCost = (float) ($deliveryMethod === 'pickup' ? $shipping['pickup'] : $shipping['courier']);
+// A szállítási díjat és a tömeges kedvezményt a szerver számolja — a kliens
+// sosem adhatja meg közvetlenül, különben tetszőleges kedvezményt/ingyenes
+// szállítást tudna beállítani magának. Futáros kiszállításnál a díj a
+// kosárban lévő termékek saját (egyenként beállított) szállítási
+// költségének összege; átvételnél a beállításokban rögzített, egységes díj
+// marad érvényben (az nem függ attól, mit veszel át).
+if ($deliveryMethod === 'pickup') {
+    $shipping = get_setting($mysqli, 'shipping');
+    $shippingCost = (float) ($shipping['pickup'] ?? 0);
+} else {
+    $shippingCost = array_reduce($resolved, fn ($sum, $it) => $sum + $it['shippingCost'] * $it['qty'], 0.0);
+}
 
 $bulkDiscount = get_setting($mysqli, 'bulkDiscount');
 $totalQty = array_reduce($resolved, fn ($sum, $it) => $sum + $it['qty'], 0);
