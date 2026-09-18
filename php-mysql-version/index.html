@@ -374,8 +374,12 @@
   }
   .rte-html-source:focus{outline:2px solid var(--signal);outline-offset:1px;}
   .rte-content img, .about-text img, .contact-note img{max-width:100%;border-radius:3px;margin:12px 0;display:block;}
-  .rte-content img{cursor:pointer;resize:both;overflow:hidden;min-width:40px;min-height:40px;}
+  .rte-content img{cursor:pointer;}
   .rte-content img.rte-img-selected{outline:2px solid var(--signal);outline-offset:2px;}
+  .rte-resize-handle{
+    position:fixed;width:14px;height:14px;background:var(--signal);border:2px solid var(--paper);
+    border-radius:50%;cursor:nwse-resize;z-index:300;display:none;box-shadow:0 0 0 1px var(--ink);
+  }
   .rte-content h1{font-family:'IBM Plex Sans',sans-serif;font-size:30px;font-weight:700;margin:16px 0 8px;}
   .rte-content h2{font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:700;margin:14px 0 6px;}
   .rte-content h3{font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;margin:12px 0 6px;}
@@ -1793,7 +1797,12 @@ document.getElementById('cartBtn').addEventListener('click', ()=>{ renderCart();
 
 /* ---------- OVERLAY SEGÉDEK ---------- */
 function openOverlay(id){ document.getElementById(id).classList.add('open'); }
-function closeOverlay(id){ document.getElementById(id).classList.remove('open'); }
+function closeOverlay(id){
+  document.getElementById(id).classList.remove('open');
+  // Ne maradjon a képhez tartozó átméretező fogantyú a képernyőn lebegve,
+  // ha közben bezáródik a szerkesztő (pl. Mégse vagy háttérre kattintás).
+  if(typeof selectRteImage === 'function') selectRteImage(null);
+}
 document.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click', ()=>closeOverlay(btn.dataset.close)));
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('open'); }));
 
@@ -2720,24 +2729,56 @@ async function uploadContentImage(blob){
   return data.path;
 }
 
+// Egyetlen, minden szövegszerkesztő között megosztott átméretező fogantyú
+// (a CSS resize tulajdonság <img>-en nem működik megbízhatóan böngészőkben,
+// ezért kézzel húzhatóvá tesszük). A kijelölt kép jobb alsó sarkára pozicionáljuk;
+// húzáskor csak a szélességet állítjuk, a magasság automatikusan arányosan követi.
+let rteSelectedImage = null;
+const rteResizeHandle = document.createElement('div');
+rteResizeHandle.className = 'rte-resize-handle';
+document.body.appendChild(rteResizeHandle);
+
+function positionRteResizeHandle(){
+  if(!rteSelectedImage){ rteResizeHandle.style.display = 'none'; return; }
+  const rect = rteSelectedImage.getBoundingClientRect();
+  rteResizeHandle.style.left = (rect.right - 8) + 'px';
+  rteResizeHandle.style.top = (rect.bottom - 8) + 'px';
+  rteResizeHandle.style.display = 'block';
+}
+function selectRteImage(img){
+  if(rteSelectedImage) rteSelectedImage.classList.remove('rte-img-selected');
+  rteSelectedImage = img;
+  if(img) img.classList.add('rte-img-selected');
+  positionRteResizeHandle();
+}
+
+let rteResizingStartX = 0, rteResizingStartWidth = 0, isResizingRteImage = false;
+rteResizeHandle.addEventListener('mousedown', (e)=>{
+  e.preventDefault();
+  if(!rteSelectedImage) return;
+  isResizingRteImage = true;
+  rteResizingStartX = e.clientX;
+  rteResizingStartWidth = rteSelectedImage.getBoundingClientRect().width;
+});
+window.addEventListener('mousemove', (e)=>{
+  if(!isResizingRteImage || !rteSelectedImage) return;
+  const newWidth = Math.max(40, Math.round(rteResizingStartWidth + (e.clientX - rteResizingStartX)));
+  rteSelectedImage.style.width = newWidth + 'px';
+  rteSelectedImage.style.height = 'auto';
+  positionRteResizeHandle();
+});
+window.addEventListener('mouseup', ()=>{ isResizingRteImage = false; });
+
 function wireEditor(toolbarId, editorId, imgInputId){
   const toolbar = document.getElementById(toolbarId);
   const editor = document.getElementById(editorId);
   const imgInput = document.getElementById(imgInputId);
-  let selectedImage = null;
 
-  // Egy képre kattintva kijelöljük (keret jelzi) — ez kell a törléshez, az
-  // átméretezéshez pedig a kép sarkán megjelenő húzófogantyú (CSS resize)
-  // szolgál, azt nem kell külön kijelölni.
+  // Egy képre kattintva kijelöljük (keret + húzható fogantyú jelenik meg).
   editor.addEventListener('click', (e)=>{
-    if(selectedImage) selectedImage.classList.remove('rte-img-selected');
-    if(e.target.tagName === 'IMG'){
-      selectedImage = e.target;
-      selectedImage.classList.add('rte-img-selected');
-    } else {
-      selectedImage = null;
-    }
+    selectRteImage(e.target.tagName === 'IMG' ? e.target : null);
   });
+  editor.addEventListener('scroll', ()=>{ if(rteSelectedImage) positionRteResizeHandle(); });
 
   toolbar.querySelectorAll('[data-cmd]').forEach(btn=>{
     if(btn.dataset.cmd === 'insertImage') return;
@@ -2777,9 +2818,9 @@ function wireEditor(toolbarId, editorId, imgInputId){
   deleteImgBtn.textContent = 'Kép törlése';
   toolbar.appendChild(deleteImgBtn);
   deleteImgBtn.addEventListener('click', ()=>{
-    if(selectedImage){
-      selectedImage.remove();
-      selectedImage = null;
+    if(rteSelectedImage){
+      rteSelectedImage.remove();
+      selectRteImage(null);
     } else {
       alert('Előbb kattints a törlendő képre a szerkesztőben.');
     }
