@@ -35,7 +35,7 @@ if ($user) {
     $basePath = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '', 3), '/');
     $resetUrl = "$scheme://$host$basePath/index.html?resetToken=$token";
 
-    $messageBody = "Szia!\n\nJelszó-visszaállítást kértél. Nyisd meg az alábbi linket (1 órán belül érvényes):\n\n$resetUrl\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.";
+    $messageBody = "Szia!\r\n\r\nJelszó-visszaállítást kértél. Nyisd meg az alábbi linket (1 órán belül érvényes):\r\n\r\n$resetUrl\r\n\r\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.";
 
     $sent = send_app_email($config, $email, 'Jelszó visszaállítása - gumipont.hu', $messageBody);
     if (!$sent) {

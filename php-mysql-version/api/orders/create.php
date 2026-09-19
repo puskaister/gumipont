@@ -189,7 +189,7 @@ function notify_new_order(array $config, int $orderId, array $order, array $item
     $lines[] = 'Kedvezmény: ' . number_format($order['discount'], 0, ',', ' ');
     $lines[] = 'Szállítási díj: ' . number_format($order['shipping_cost'], 0, ',', ' ');
     $lines[] = 'Végösszeg: ' . number_format($order['total'], 0, ',', ' ');
-    $messageBody = implode("\n", $lines);
+    $messageBody = implode("\r\n", $lines);
 
     $sent = send_app_email($config, $to, "Új rendelés #$orderId - gumipont.hu", $messageBody, $bcc);
     if (!$sent) {
