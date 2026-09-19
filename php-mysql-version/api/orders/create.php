@@ -186,7 +186,9 @@ function notify_new_order(array $config, int $orderId, array $order, array $item
     $lines[] = 'Összesítés';
     $lines[] = '----------';
     $lines[] = 'Részösszeg: ' . number_format($order['subtotal'], 0, ',', ' ');
-    $lines[] = 'Kedvezmény: ' . number_format($order['discount'], 0, ',', ' ');
+    if ((float) $order['discount'] > 0) {
+        $lines[] = 'Kedvezmény: ' . number_format($order['discount'], 0, ',', ' ');
+    }
     $lines[] = 'Szállítási díj: ' . number_format($order['shipping_cost'], 0, ',', ' ');
     $lines[] = 'Végösszeg: ' . number_format($order['total'], 0, ',', ' ');
     $messageBody = implode("\r\n", $lines);
