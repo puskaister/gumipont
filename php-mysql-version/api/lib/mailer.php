@@ -9,10 +9,10 @@ declare(strict_types=1);
 // hitelesített kapcsolattal küldünk. Ha nincs 'smtp' konfiguráció, a régi
 // mail()-alapú küldésre esünk vissza (helyi/teszt környezetekhez).
 
-function send_app_email(array $config, string $to, string $subject, string $body): bool {
+function send_app_email(array $config, string $to, string $subject, string $body, ?string $bcc = null): bool {
     $smtp = $config['smtp'] ?? null;
     if (is_array($smtp) && !empty($smtp['host']) && !empty($smtp['username']) && !empty($smtp['password'])) {
-        if (smtp_send_mail($smtp, $to, $subject, $body)) {
+        if (smtp_send_mail($smtp, $to, $subject, $body, $bcc)) {
             return true;
         }
         // Ha az SMTP-küldés hibázik, még megpróbáljuk a natív mail()-t is,
@@ -26,11 +26,14 @@ function send_app_email(array $config, string $to, string $subject, string $body
     $headers = "MIME-Version: 1.0\r\n"
         . "Content-Type: text/plain; charset=UTF-8\r\n"
         . "From: $from";
+    if ($bcc !== null && $bcc !== '') {
+        $headers .= "\r\nBcc: $bcc";
+    }
 
     return @mail($to, $encodedSubject, $body, $headers);
 }
 
-function smtp_send_mail(array $smtp, string $to, string $subject, string $body): bool {
+function smtp_send_mail(array $smtp, string $to, string $subject, string $body, ?string $bcc = null): bool {
     $host = (string) ($smtp['host'] ?? '');
     $port = (int) ($smtp['port'] ?? 465);
     $username = (string) ($smtp['username'] ?? '');
@@ -92,6 +95,11 @@ function smtp_send_mail(array $smtp, string $to, string $subject, string $body):
     $step('password', base64_encode($password), '235');
     $step('MAIL FROM', "MAIL FROM:<$from>", '250');
     $step('RCPT TO', "RCPT TO:<$to>", '250');
+    // A BCC-címzett egy plusz RCPT TO parancsot kap, de a levél fejlécében
+    // (headers) sehol nem jelenik meg — így marad "titkos" másolat.
+    if ($bcc !== null && $bcc !== '') {
+        $step('RCPT TO (BCC)', "RCPT TO:<$bcc>", '250');
+    }
     $step('DATA', 'DATA', '354');
 
     $encodedSubject = mb_encode_mimeheader($subject, 'UTF-8', 'B');

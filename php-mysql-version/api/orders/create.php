@@ -14,7 +14,10 @@ $body = json_input();
 $customerName = trim((string) ($body['customerName'] ?? ''));
 $customerEmail = strtolower(trim((string) ($body['customerEmail'] ?? '')));
 $customerPhone = trim((string) ($body['customerPhone'] ?? ''));
-$shippingAddress = trim((string) ($body['shippingAddress'] ?? ''));
+$shippingZip = trim((string) ($body['shippingZip'] ?? ''));
+$shippingCity = trim((string) ($body['shippingCity'] ?? ''));
+$shippingStreet = trim((string) ($body['shippingStreet'] ?? ''));
+$shippingHouseNo = trim((string) ($body['shippingHouseNumber'] ?? ''));
 $deliveryMethod = (string) ($body['deliveryMethod'] ?? '');
 $paymentMethod = (string) ($body['paymentMethod'] ?? '');
 $items = is_array($body['items'] ?? null) ? $body['items'] : [];
@@ -24,10 +27,17 @@ if (!filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) error_response('Invalid 
 if ($customerPhone === '') error_response('Invalid input: customerPhone');
 if (!in_array($deliveryMethod, ['courier', 'pickup'], true)) error_response('Invalid input: deliveryMethod');
 if (!in_array($paymentMethod, ['card', 'transfer', 'cash'], true)) error_response('Invalid input: paymentMethod');
-if ($deliveryMethod === 'courier' && $shippingAddress === '') {
-    error_response('Szállítási cím megadása kötelező futáros kiszállításnál.');
+if ($deliveryMethod === 'courier' && ($shippingZip === '' || $shippingCity === '' || $shippingStreet === '' || $shippingHouseNo === '')) {
+    error_response('Az irányítószám, a város, az utca és a házszám megadása kötelező futáros kiszállításnál.');
 }
 if (!$items) error_response('Invalid input: items');
+
+// A régebbi, egyben tárolt "shipping_address" mezőt is feltöltjük a
+// tagolt részekből — ez marad a kompakt megjelenítéshez (pl. rendelések
+// listája), a tagolt mezők pedig a részletes nézethez és az emailhez.
+$shippingAddress = $deliveryMethod === 'courier'
+    ? trim("$shippingZip $shippingCity, $shippingStreet $shippingHouseNo.")
+    : '';
 
 // Tételek feloldása + készlet-ellenőrzés + fajlagos ár lekérése.
 $resolved = [];
@@ -86,13 +96,15 @@ try {
         "INSERT INTO orders (
             user_id, status, delivery_method, payment_method,
             customer_name, customer_email, customer_phone, shipping_address,
+            shipping_zip, shipping_city, shipping_street, shipping_house_no,
             subtotal, discount, shipping_cost, total
-        ) VALUES (?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ) VALUES (?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     $stmt->bind_param(
-        'issssssdddd',
+        'issssssssssdddd',
         $userId, $deliveryMethod, $paymentMethod, $customerName, $customerEmail, $customerPhone,
-        $shippingAddress, $subtotal, $discount, $shippingCost, $total
+        $shippingAddress, $shippingZip, $shippingCity, $shippingStreet, $shippingHouseNo,
+        $subtotal, $discount, $shippingCost, $total
     );
     $stmt->execute();
     $orderId = $mysqli->insert_id;
@@ -120,6 +132,8 @@ $order = [
     'delivery_method' => $deliveryMethod, 'payment_method' => $paymentMethod,
     'customer_name' => $customerName, 'customer_email' => $customerEmail,
     'customer_phone' => $customerPhone, 'shipping_address' => $shippingAddress,
+    'shipping_zip' => $shippingZip, 'shipping_city' => $shippingCity,
+    'shipping_street' => $shippingStreet, 'shipping_house_no' => $shippingHouseNo,
     'subtotal' => $subtotal, 'discount' => $discount, 'shipping_cost' => $shippingCost, 'total' => $total,
 ];
 $orderItems = array_map(fn ($it) => [
@@ -130,11 +144,13 @@ notify_new_order($config, $orderId, $order, $resolved, $deliveryMethod, $payment
 
 respond(['order' => $order, 'items' => $orderItems], 201);
 
-// Értesítő email az admin címre minden új rendelésnél — az api/config.php
-// 'smtp' beállításán keresztül (ha ki van töltve), különben a natív mail()
+// Értesítő email a rendeles@gumipont.hu címre minden új rendelésnél (titkos
+// másolatban puskaisandor@gmail.com-nak is) — az api/config.php 'smtp'
+// beállításán keresztül (ha ki van töltve), különben a natív mail()
 // függvényre esik vissza (lásd api/lib/mailer.php).
 function notify_new_order(array $config, int $orderId, array $order, array $items, string $deliveryMethod, string $paymentMethod): void {
-    $to = 'puskaisandor@gmail.com';
+    $to = 'rendeles@gumipont.hu';
+    $bcc = 'puskaisandor@gmail.com';
 
     $deliveryLabel = $deliveryMethod === 'pickup' ? 'Átvétel' : 'Futár';
     $paymentLabel = ['card' => 'Kártya', 'transfer' => 'Átutalás', 'cash' => 'Készpénz'][$paymentMethod] ?? $paymentMethod;
@@ -142,27 +158,40 @@ function notify_new_order(array $config, int $orderId, array $order, array $item
     $lines = [];
     $lines[] = "Új rendelés érkezett - #$orderId";
     $lines[] = '';
-    $lines[] = 'Vevő: ' . $order['customer_name'];
+    $lines[] = 'Vevő adatai';
+    $lines[] = '-----------';
+    $lines[] = 'Név: ' . $order['customer_name'];
     $lines[] = 'Email: ' . $order['customer_email'];
     $lines[] = 'Telefonszám: ' . $order['customer_phone'];
-    $lines[] = 'Szállítási cím: ' . ($order['shipping_address'] !== '' ? $order['shipping_address'] : '-');
-    $lines[] = "Szállítási mód: $deliveryLabel";
+    $lines[] = '';
+    $lines[] = 'Szállítás';
+    $lines[] = '---------';
+    $lines[] = "Mód: $deliveryLabel";
+    if ($deliveryMethod === 'courier') {
+        $lines[] = 'Irányítószám: ' . $order['shipping_zip'];
+        $lines[] = 'Város: ' . $order['shipping_city'];
+        $lines[] = 'Utca: ' . $order['shipping_street'];
+        $lines[] = 'Házszám: ' . $order['shipping_house_no'];
+    }
     $lines[] = "Fizetési mód: $paymentLabel";
     $lines[] = '';
-    $lines[] = 'Tételek:';
+    $lines[] = 'Tételek';
+    $lines[] = '-------';
     foreach ($items as $it) {
         $lineTotal = number_format($it['unitPrice'] * $it['qty'], 0, ',', ' ');
         $unitPrice = number_format($it['unitPrice'], 0, ',', ' ');
         $lines[] = "  - {$it['brand']} {$it['model']} x{$it['qty']} @ $unitPrice = $lineTotal";
     }
     $lines[] = '';
+    $lines[] = 'Összesítés';
+    $lines[] = '----------';
     $lines[] = 'Részösszeg: ' . number_format($order['subtotal'], 0, ',', ' ');
     $lines[] = 'Kedvezmény: ' . number_format($order['discount'], 0, ',', ' ');
     $lines[] = 'Szállítási díj: ' . number_format($order['shipping_cost'], 0, ',', ' ');
     $lines[] = 'Végösszeg: ' . number_format($order['total'], 0, ',', ' ');
     $messageBody = implode("\n", $lines);
 
-    $sent = send_app_email($config, $to, "Új rendelés #$orderId - gumipont.hu", $messageBody);
+    $sent = send_app_email($config, $to, "Új rendelés #$orderId - gumipont.hu", $messageBody, $bcc);
     if (!$sent) {
         error_log("[gumipont uj rendeles ertesito] Nem sikerult emailt kuldeni a(z) #$orderId rendelesrol");
     }

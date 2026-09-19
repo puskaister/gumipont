@@ -207,6 +207,16 @@
   .form-field label{font-size:12px;color:var(--graphite);}
   .form-field input,.form-field select,.form-field textarea{padding:9px 10px;border:1px solid var(--graphite-light);border-radius:var(--radius);font-size:14px;font-family:'IBM Plex Sans',sans-serif;}
   .form-field textarea{resize:vertical;line-height:1.6;}
+  .checkout-address-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .checkout-address-grid input{padding:9px 10px;border:1px solid var(--graphite-light);border-radius:var(--radius);font-size:14px;font-family:'IBM Plex Sans',sans-serif;}
+  .checkout-address-grid input:nth-child(1){grid-column:1;}
+  .checkout-address-grid input:nth-child(2){grid-column:2/4;}
+  .checkout-address-grid input:nth-child(3){grid-column:1/3;}
+  .checkout-address-grid input:nth-child(4){grid-column:3;}
+  @media (max-width:480px){
+    .checkout-address-grid{grid-template-columns:1fr;}
+    .checkout-address-grid input{grid-column:1 !important;}
+  }
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
   .btn-primary{background:var(--ink);color:var(--paper);border:none;padding:10px 20px;border-radius:var(--radius);font-weight:600;font-size:14px;}
   .btn-ghost{background:none;border:1px solid var(--graphite-light);padding:10px 20px;border-radius:var(--radius);font-size:14px;}
@@ -690,7 +700,12 @@
           </div>
           <div class="form-field full" id="checkoutAddressField">
             <label>Szállítási cím</label>
-            <input id="checkoutAddress" placeholder="Irányítószám, város, utca, házszám" autocomplete="street-address">
+            <div class="checkout-address-grid">
+              <input id="checkoutZip" placeholder="Irányítószám" autocomplete="postal-code">
+              <input id="checkoutCity" placeholder="Város" autocomplete="address-level2">
+              <input id="checkoutStreet" placeholder="Utca" autocomplete="address-line1">
+              <input id="checkoutHouseNumber" placeholder="Házszám" autocomplete="address-line2">
+            </div>
           </div>
         </div>
         <div class="hint-text" id="cardPaymentHint" style="display:none;">Bankkártyás fizetés jelenleg nem online történik ezen az oldalon — a kártyás fizetésre kiszállításkor/átvételkor vagy előre egyeztetve, telefonon kerül sor.</div>
@@ -879,7 +894,11 @@
         <div class="form-field"><label>Vevő neve</label><div id="odName"></div></div>
         <div class="form-field"><label>Email</label><div id="odEmail"></div></div>
         <div class="form-field"><label>Telefonszám</label><div id="odPhone"></div></div>
-        <div class="form-field"><label>Szállítási cím</label><div id="odAddress"></div></div>
+        <div class="form-field" id="odAddressLegacyField"><label>Szállítási cím</label><div id="odAddress"></div></div>
+        <div class="form-field" id="odZipField"><label>Irányítószám</label><div id="odZip"></div></div>
+        <div class="form-field" id="odCityField"><label>Város</label><div id="odCity"></div></div>
+        <div class="form-field" id="odStreetField"><label>Utca</label><div id="odStreet"></div></div>
+        <div class="form-field" id="odHouseNoField"><label>Házszám</label><div id="odHouseNo"></div></div>
         <div class="form-field"><label>Szállítási mód</label><div id="odDelivery"></div></div>
         <div class="form-field"><label>Fizetési mód</label><div id="odPayment"></div></div>
       </div>
@@ -1769,15 +1788,18 @@ document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
   const customerPhone = document.getElementById('checkoutPhone').value.trim();
   const deliveryMethod = document.getElementById('checkoutDelivery').value;
   const paymentMethod = document.getElementById('checkoutPayment').value;
-  const shippingAddress = document.getElementById('checkoutAddress').value.trim();
+  const shippingZip = document.getElementById('checkoutZip').value.trim();
+  const shippingCity = document.getElementById('checkoutCity').value.trim();
+  const shippingStreet = document.getElementById('checkoutStreet').value.trim();
+  const shippingHouseNumber = document.getElementById('checkoutHouseNumber').value.trim();
 
   if(!customerName || !customerEmail || !customerPhone){
     errEl.textContent = 'Add meg a neved, emailed és telefonszámod.';
     errEl.style.display = 'block';
     return;
   }
-  if(deliveryMethod === 'courier' && !shippingAddress){
-    errEl.textContent = 'Futáros kiszállításhoz add meg a szállítási címet.';
+  if(deliveryMethod === 'courier' && (!shippingZip || !shippingCity || !shippingStreet || !shippingHouseNumber)){
+    errEl.textContent = 'Futáros kiszállításhoz add meg az irányítószámot, a várost, az utcát és a házszámot.';
     errEl.style.display = 'block';
     return;
   }
@@ -1787,7 +1809,8 @@ document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
   let data;
   try{
     data = await apiJson('orders/create.php', 'POST', {
-      customerName, customerEmail, customerPhone, shippingAddress,
+      customerName, customerEmail, customerPhone,
+      shippingZip, shippingCity, shippingStreet, shippingHouseNumber,
       deliveryMethod, paymentMethod,
       items,
     });
@@ -1808,7 +1831,10 @@ document.getElementById('checkoutSubmit').addEventListener('click', async ()=>{
 
   document.getElementById('checkoutName').value='';
   document.getElementById('checkoutPhone').value='';
-  document.getElementById('checkoutAddress').value='';
+  document.getElementById('checkoutZip').value='';
+  document.getElementById('checkoutCity').value='';
+  document.getElementById('checkoutStreet').value='';
+  document.getElementById('checkoutHouseNumber').value='';
   document.getElementById('cartItems').style.display='none';
   document.getElementById('cartTotalRow').style.display='none';
   document.getElementById('checkoutSection').style.display='none';
@@ -2118,7 +2144,20 @@ function openOrderDetail(id){
   document.getElementById('odName').textContent = o.customer_name || '—';
   document.getElementById('odEmail').textContent = o.customer_email || '—';
   document.getElementById('odPhone').textContent = o.customer_phone || '—';
+  // Új rendeléseknél tagolt cím-mezők vannak; a régebbieknél (a migráció
+  // előtt) csak az egyben tárolt "shipping_address" — ilyenkor arra esünk
+  // vissza, hogy a régi rendelések adatai se vesszenek el a nézetből.
+  const hasStructuredAddress = o.shipping_zip || o.shipping_city || o.shipping_street || o.shipping_house_no;
+  document.getElementById('odAddressLegacyField').style.display = hasStructuredAddress ? 'none' : '';
+  document.getElementById('odZipField').style.display = hasStructuredAddress ? '' : 'none';
+  document.getElementById('odCityField').style.display = hasStructuredAddress ? '' : 'none';
+  document.getElementById('odStreetField').style.display = hasStructuredAddress ? '' : 'none';
+  document.getElementById('odHouseNoField').style.display = hasStructuredAddress ? '' : 'none';
   document.getElementById('odAddress').textContent = o.shipping_address || '—';
+  document.getElementById('odZip').textContent = o.shipping_zip || '—';
+  document.getElementById('odCity').textContent = o.shipping_city || '—';
+  document.getElementById('odStreet').textContent = o.shipping_street || '—';
+  document.getElementById('odHouseNo').textContent = o.shipping_house_no || '—';
   document.getElementById('odDelivery').textContent = deliveryLabel(o.delivery_method);
   document.getElementById('odPayment').textContent = paymentLabel(o.payment_method);
 
