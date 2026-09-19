@@ -921,7 +921,7 @@
         <div class="form-field"><label>Felni (col)</label><input id="pfRim" type="text" placeholder="pl. 16, 22.5 vagy 16C"></div>
         <div class="form-field pf-rim-only"><label>Furatok száma</label><input id="pfHoleCount" type="number" placeholder="pl. 5"></div>
         <div class="form-field pf-rim-only"><label>Osztókör</label><input id="pfPcd" placeholder="pl. 114,3"></div>
-        <div class="form-field pf-rim-only"><label>ET</label><input id="pfEt" placeholder="pl. 35 vagy 42,5"></div>
+        <div class="form-field pf-rim-only"><label>ET (-50 és 250 között)</label><input id="pfEt" placeholder="pl. 35 vagy 42,5"></div>
         <div class="form-field pf-tire-only">
           <label>Évszak</label>
           <select id="pfSeason">
@@ -2252,6 +2252,14 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
     errEl.textContent = 'Add meg a felni osztókörét.';
     errEl.style.display='block';
     return;
+  }
+  if(isRim && et){
+    const etNum = parseFloat(et.replace(',', '.'));
+    if(isNaN(etNum) || etNum < -50 || etNum > 250){
+      errEl.textContent = 'Az ET értéke -50 és 250 között lehet.';
+      errEl.style.display='block';
+      return;
+    }
   }
   errEl.style.display='none';
 

@@ -62,6 +62,10 @@ if ($category === 'tire') {
 
     if ($holeCount <= 0) error_response('Invalid input: holeCount');
     if ($pcd === '') error_response('Invalid input: pcd');
+    if ($et !== null) {
+        $etNum = (float) str_replace(',', '.', $et);
+        if ($etNum < -50 || $etNum > 250) error_response('Invalid input: et');
+    }
 }
 
 $uploadedImage = save_uploaded_image('image');
