@@ -12,6 +12,7 @@ if (isset($_GET['category']) && $_GET['category'] !== '') { $where[] = 'category
 if (isset($_GET['width']) && $_GET['width'] !== '') { $where[] = 'width = ?'; $params[] = (int) $_GET['width']; $types .= 'i'; }
 if (isset($_GET['profile']) && $_GET['profile'] !== '') { $where[] = 'profile = ?'; $params[] = (int) $_GET['profile']; $types .= 'i'; }
 if (isset($_GET['rim']) && $_GET['rim'] !== '') { $where[] = 'rim = ?'; $params[] = (string) $_GET['rim']; $types .= 's'; }
+if (isset($_GET['rimWidth']) && $_GET['rimWidth'] !== '') { $where[] = 'rim_width = ?'; $params[] = (string) $_GET['rimWidth']; $types .= 's'; }
 if (isset($_GET['holeCount']) && $_GET['holeCount'] !== '') { $where[] = 'hole_count = ?'; $params[] = (int) $_GET['holeCount']; $types .= 'i'; }
 if (isset($_GET['pcd']) && $_GET['pcd'] !== '') { $where[] = 'pcd = ?'; $params[] = (string) $_GET['pcd']; $types .= 's'; }
 if (isset($_GET['et']) && $_GET['et'] !== '') { $where[] = 'et = ?'; $params[] = (string) $_GET['et']; $types .= 's'; }
@@ -38,6 +39,7 @@ foreach ($rows as $row) {
         'width' => $row['width'] !== null ? (int) $row['width'] : null,
         'profile' => $row['profile'] !== null ? (int) $row['profile'] : null,
         'rim' => (string) $row['rim'],
+        'rimWidth' => $row['rim_width'],
         'holeCount' => $row['hole_count'] !== null ? (int) $row['hole_count'] : null,
         'pcd' => $row['pcd'],
         'et' => $row['et'],

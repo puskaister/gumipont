@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS products (
   width       INT NULL,
   profile     INT NULL,
   rim         VARCHAR(10) NOT NULL,
+  rim_width   VARCHAR(10) NULL,
   hole_count  INT NULL,
   pcd         VARCHAR(10) NULL,
   et          VARCHAR(10) NULL,

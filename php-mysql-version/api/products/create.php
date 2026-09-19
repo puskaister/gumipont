@@ -34,6 +34,7 @@ if ($category === 'tire') {
     $holeCount = null;
     $pcd = null;
     $et = null;
+    $rimWidth = null;
 
     if ($width <= 0 || $profile <= 0) error_response('Invalid input: size');
     if (!in_array($season, ['summer', 'winter', 'all-season'], true)) error_response('Invalid input: season');
@@ -47,6 +48,8 @@ if ($category === 'tire') {
     $pcd = trim((string) ($_POST['pcd'] ?? ''));
     $et = trim((string) ($_POST['et'] ?? ''));
     if ($et === '') $et = null;
+    $rimWidth = trim((string) ($_POST['rimWidth'] ?? ''));
+    if ($rimWidth === '') $rimWidth = null;
 
     if ($holeCount <= 0) error_response('Invalid input: holeCount');
     if ($pcd === '') error_response('Invalid input: pcd');
@@ -59,24 +62,24 @@ if ($category === 'tire') {
 $image = save_uploaded_image('image');
 
 $stmt = $mysqli->prepare(
-    'INSERT INTO products (category, brand, model, width, profile, rim, hole_count, pcd, et, season, vehicle_type, price, shipping_cost, stock, speed, load_index, image, description)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO products (category, brand, model, width, profile, rim, rim_width, hole_count, pcd, et, season, vehicle_type, price, shipping_cost, stock, speed, load_index, image, description)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 $stmt->bind_param(
-    'sssiisissssddissss',
-    $category, $brand, $model, $width, $profile, $rim, $holeCount, $pcd, $et, $season, $vehicleType, $price, $shippingCost, $stock, $speed, $loadIndex, $image, $description
+    'sssiississssddissss',
+    $category, $brand, $model, $width, $profile, $rim, $rimWidth, $holeCount, $pcd, $et, $season, $vehicleType, $price, $shippingCost, $stock, $speed, $loadIndex, $image, $description
 );
 // Típusjelzők sorrendben: category=s brand=s model=s width=i profile=i rim=s
-// hole_count=i pcd=s et=s season=s vehicleType=s price=d shipping_cost=d
-// stock=i speed=s loadIndex=s image=s description=s (18 érték -> 18 jelző).
-// width/profile/season/hole_count/pcd/et NULL is lehet a kategóriától
-// függően — bind_param NULL-t is elfogad.
+// rim_width=s hole_count=i pcd=s et=s season=s vehicleType=s price=d
+// shipping_cost=d stock=i speed=s loadIndex=s image=s description=s
+// (19 érték -> 19 jelző). width/profile/season/hole_count/pcd/et/rim_width
+// NULL is lehet a kategóriától függően — bind_param NULL-t is elfogad.
 $stmt->execute();
 $id = $mysqli->insert_id;
 $stmt->close();
 
 respond(['product' => [
     'id' => $id, 'category' => $category, 'brand' => $brand, 'model' => $model, 'width' => $width, 'profile' => $profile,
-    'rim' => $rim, 'holeCount' => $holeCount, 'pcd' => $pcd, 'et' => $et, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price,
+    'rim' => $rim, 'rimWidth' => $rimWidth, 'holeCount' => $holeCount, 'pcd' => $pcd, 'et' => $et, 'season' => $season, 'vehicleType' => $vehicleType, 'price' => $price,
     'shippingCost' => $shippingCost, 'stock' => $stock, 'speed' => $speed, 'loadIndex' => $loadIndex, 'image' => $image, 'description' => $description,
 ]], 201);
