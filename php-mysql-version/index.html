@@ -134,14 +134,14 @@
   .sidebar h3{font-size:26px;margin-bottom:14px;}
   .filter-group{margin-bottom:28px;}
   .filter-group .flabel{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;}
-  .felni-subhead{font-size:12px;color:var(--graphite);margin:10px 0 6px;}
-  .felni-subhead:first-of-type{margin-top:0;}
   .check-row{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:8px;cursor:pointer;}
   .check-row input{accent-color:var(--ink);}
   .felni-select{
     width:100%;padding:8px 10px;border:1px solid var(--graphite-light);border-radius:var(--radius);
     font-size:13px;font-family:'IBM Plex Mono',monospace;color:var(--ink);background:var(--paper);
+    display:block;margin-bottom:8px;
   }
+  .felni-select:last-child{margin-bottom:0;}
   .price-inputs{display:flex;gap:8px;align-items:center;}
   .price-inputs input{width:70px;padding:6px 8px;border:1px solid var(--graphite-light);font-family:'IBM Plex Mono',monospace;font-size:12px;border-radius:var(--radius);}
   .reset-link{background:none;border:none;text-decoration:underline;font-size:12px;color:var(--graphite);padding:0;}
@@ -531,20 +531,19 @@
       </div>
       <div class="filter-group">
         <div class="flabel">FELNI</div>
-        <div class="felni-subhead">Méret (coll)</div>
-        <select id="felniSizeSelect" class="felni-select"><option value="">Bármelyik</option></select>
-        <div class="felni-subhead">Szélesség</div>
-        <select id="felniWidthSelect" class="felni-select"><option value="">Bármelyik</option></select>
-        <div class="felni-subhead">Furatok száma</div>
-        <select id="holeCountSelect" class="felni-select"><option value="">Bármelyik</option></select>
-        <div class="felni-subhead">Osztókör</div>
-        <select id="pcdSelect" class="felni-select"><option value="">Bármelyik</option></select>
-        <div class="felni-subhead">ET</div>
-        <select id="etFilterSelect" class="felni-select"><option value="">Bármelyik</option></select>
+        <select id="felniSizeSelect" class="felni-select"><option value="">Méret</option></select>
+        <select id="felniWidthSelect" class="felni-select"><option value="">Szélesség</option></select>
+        <select id="holeCountSelect" class="felni-select"><option value="">Furatok száma</option></select>
+        <select id="pcdSelect" class="felni-select"><option value="">Osztókör</option></select>
+        <select id="etFilterSelect" class="felni-select"><option value="">ET</option></select>
       </div>
       <div class="filter-group">
-        <div class="flabel">MÁRKA</div>
-        <div id="brandFilters"></div>
+        <div class="flabel">FELNI MÁRKA</div>
+        <div id="rimBrandFilters"></div>
+      </div>
+      <div class="filter-group">
+        <div class="flabel">GUMI MÁRKA</div>
+        <div id="tireBrandFilters"></div>
       </div>
       <div class="filter-group">
         <div class="flabel">ÁR, HUF</div>
@@ -1249,7 +1248,8 @@ let isAdmin = false;
 let currentUser = null;
 let activeSeasonFilters = [];
 let activeVehicleTypeFilters = [];
-let activeBrandFilters = [];
+let activeRimBrandFilters = [];
+let activeTireBrandFilters = [];
 let activeHoleCountFilters = [];
 let activePcdFilters = [];
 let activeEtFilters = [];
@@ -1333,10 +1333,14 @@ function populateSpecDropdowns(){
 }
 
 function populateBrandFilters(){
-  const brands = uniq(products.map(p=>p.brand)).sort();
-  const container = document.getElementById('brandFilters');
-  container.innerHTML = brands.map(b=>`<label class="check-row"><input type="checkbox" class="brand-filter" value="${b}"> ${b}</label>`).join('');
-  container.querySelectorAll('.brand-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
+  const rimBrands = uniq(products.filter(p=>p.category==='rim').map(p=>p.brand)).sort();
+  const tireBrands = uniq(products.filter(p=>p.category==='tire').map(p=>p.brand)).sort();
+  const rimContainer = document.getElementById('rimBrandFilters');
+  const tireContainer = document.getElementById('tireBrandFilters');
+  rimContainer.innerHTML = rimBrands.map(b=>`<label class="check-row"><input type="checkbox" class="rim-brand-filter" value="${b}"> ${b}</label>`).join('');
+  tireContainer.innerHTML = tireBrands.map(b=>`<label class="check-row"><input type="checkbox" class="tire-brand-filter" value="${b}"> ${b}</label>`).join('');
+  rimContainer.querySelectorAll('.rim-brand-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
+  tireContainer.querySelectorAll('.tire-brand-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
 }
 
 function populateFelniFilters(){
@@ -1347,17 +1351,17 @@ function populateFelniFilters(){
   const sizes = uniq(rimProducts.map(p=>p.rim).filter(r=>r!=null)).sort(compareSizeLabels);
   const widths = uniq(rimProducts.map(p=>p.rimWidth).filter(v=>v)).sort(compareSizeLabels);
 
-  fillFelniSelect('felniSizeSelect', sizes, activeFelniSizeFilters, v=>`R${v}`);
-  fillFelniSelect('felniWidthSelect', widths, activeFelniWidthFilters, v=>v);
-  fillFelniSelect('holeCountSelect', holeCounts, activeHoleCountFilters, v=>`${v} furatos`);
-  fillFelniSelect('pcdSelect', pcds, activePcdFilters, v=>v);
-  fillFelniSelect('etFilterSelect', ets, activeEtFilters, v=>`ET${v}`);
+  fillFelniSelect('felniSizeSelect', 'Méret', sizes, activeFelniSizeFilters, v=>`R${v}`);
+  fillFelniSelect('felniWidthSelect', 'Szélesség', widths, activeFelniWidthFilters, v=>v);
+  fillFelniSelect('holeCountSelect', 'Furatok száma', holeCounts, activeHoleCountFilters, v=>`${v} furatos`);
+  fillFelniSelect('pcdSelect', 'Osztókör', pcds, activePcdFilters, v=>v);
+  fillFelniSelect('etFilterSelect', 'ET', ets, activeEtFilters, v=>`ET${v}`);
 }
 
-function fillFelniSelect(selectId, values, activeArr, labelFn){
+function fillFelniSelect(selectId, placeholder, values, activeArr, labelFn){
   const select = document.getElementById(selectId);
   const current = String(activeArr[0] ?? '');
-  select.innerHTML = '<option value="">Bármelyik</option>' + values.map(v=>`<option value="${v}">${labelFn(v)}</option>`).join('');
+  select.innerHTML = `<option value="">${placeholder}</option>` + values.map(v=>`<option value="${v}">${labelFn(v)}</option>`).join('');
   select.value = values.map(String).includes(current) ? current : '';
   if(!select.dataset.wired){
     select.addEventListener('change', onFilterChange);
@@ -1420,7 +1424,8 @@ function getFilteredProducts(){
 
   if(activeSeasonFilters.length) list = list.filter(p=>activeSeasonFilters.includes(p.season));
   if(activeVehicleTypeFilters.length) list = list.filter(p=>activeVehicleTypeFilters.includes(p.vehicleType));
-  if(activeBrandFilters.length) list = list.filter(p=>activeBrandFilters.includes(p.brand));
+  if(activeRimBrandFilters.length) list = list.filter(p=>p.category==='rim' && activeRimBrandFilters.includes(p.brand));
+  if(activeTireBrandFilters.length) list = list.filter(p=>p.category==='tire' && activeTireBrandFilters.includes(p.brand));
   if(activeHoleCountFilters.length) list = list.filter(p=>p.category==='rim' && activeHoleCountFilters.includes(String(p.holeCount)));
   if(activePcdFilters.length) list = list.filter(p=>p.category==='rim' && activePcdFilters.includes(String(p.pcd)));
   if(activeEtFilters.length) list = list.filter(p=>p.category==='rim' && activeEtFilters.includes(String(p.et)));
@@ -1593,7 +1598,8 @@ function wireContentImages(container){
 function onFilterChange(){
   activeSeasonFilters = [...document.querySelectorAll('.season-filter:checked')].map(cb=>cb.value);
   activeVehicleTypeFilters = [...document.querySelectorAll('.vehicle-filter:checked')].map(cb=>cb.value);
-  activeBrandFilters = [...document.querySelectorAll('.brand-filter:checked')].map(cb=>cb.value);
+  activeRimBrandFilters = [...document.querySelectorAll('.rim-brand-filter:checked')].map(cb=>cb.value);
+  activeTireBrandFilters = [...document.querySelectorAll('.tire-brand-filter:checked')].map(cb=>cb.value);
   const selectValue = id => { const v = document.getElementById(id).value; return v ? [v] : []; };
   activeHoleCountFilters = selectValue('holeCountSelect');
   activePcdFilters = selectValue('pcdSelect');
@@ -1609,11 +1615,11 @@ document.querySelectorAll('.vehicle-filter').forEach(cb=>cb.addEventListener('ch
 document.getElementById('priceMin').addEventListener('input', ()=>{ currentPage = 1; renderGrid(); });
 document.getElementById('priceMax').addEventListener('input', ()=>{ currentPage = 1; renderGrid(); });
 document.getElementById('resetFilters').addEventListener('click', ()=>{
-  document.querySelectorAll('.season-filter, .vehicle-filter, .brand-filter').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.season-filter, .vehicle-filter, .rim-brand-filter, .tire-brand-filter').forEach(cb=>cb.checked=false);
   ['felniSizeSelect','felniWidthSelect','holeCountSelect','pcdSelect','etFilterSelect'].forEach(id=>{ document.getElementById(id).value=''; });
   document.getElementById('priceMin').value='';
   document.getElementById('priceMax').value='';
-  activeSeasonFilters=[]; activeVehicleTypeFilters=[]; activeBrandFilters=[]; activeHoleCountFilters=[]; activePcdFilters=[]; activeEtFilters=[]; activeFelniSizeFilters=[]; activeFelniWidthFilters=[];
+  activeSeasonFilters=[]; activeVehicleTypeFilters=[]; activeRimBrandFilters=[]; activeTireBrandFilters=[]; activeHoleCountFilters=[]; activePcdFilters=[]; activeEtFilters=[]; activeFelniSizeFilters=[]; activeFelniWidthFilters=[];
   searchQuery = {mode:'size', width:'', profile:'', rim:'', text:''};
   document.getElementById('fWidth').value='';
   document.getElementById('fProfile').value='';
