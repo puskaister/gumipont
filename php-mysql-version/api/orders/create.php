@@ -14,23 +14,35 @@ $body = json_input();
 $customerName = trim((string) ($body['customerName'] ?? ''));
 $customerEmail = strtolower(trim((string) ($body['customerEmail'] ?? '')));
 $customerPhone = trim((string) ($body['customerPhone'] ?? ''));
+$customerType = (string) ($body['customerType'] ?? 'individual');
+$taxNumber = trim((string) ($body['taxNumber'] ?? ''));
 $shippingZip = trim((string) ($body['shippingZip'] ?? ''));
 $shippingCity = trim((string) ($body['shippingCity'] ?? ''));
 $shippingStreet = trim((string) ($body['shippingStreet'] ?? ''));
 $shippingHouseNo = trim((string) ($body['shippingHouseNumber'] ?? ''));
 $deliveryMethod = (string) ($body['deliveryMethod'] ?? '');
 $paymentMethod = (string) ($body['paymentMethod'] ?? '');
+$termsAccepted = (bool) ($body['termsAccepted'] ?? false);
 $items = is_array($body['items'] ?? null) ? $body['items'] : [];
 
 if ($customerName === '' || mb_strlen($customerName) > 200) error_response('Invalid input: customerName');
 if (!filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) error_response('Invalid input: customerEmail');
-if ($customerPhone === '') error_response('Invalid input: customerPhone');
+if ($customerPhone === '' || !is_valid_hu_phone($customerPhone)) error_response('Invalid input: customerPhone');
+if (!in_array($customerType, ['individual', 'company'], true)) error_response('Invalid input: customerType');
+if ($customerType === 'company' && $taxNumber === '') error_response('Cégként vásárláshoz az adószám megadása kötelező.');
+if ($customerType !== 'company') $taxNumber = '';
 if (!in_array($deliveryMethod, ['courier', 'pickup'], true)) error_response('Invalid input: deliveryMethod');
 if (!in_array($paymentMethod, ['card', 'transfer', 'cash'], true)) error_response('Invalid input: paymentMethod');
 if ($deliveryMethod === 'courier' && ($shippingZip === '' || $shippingCity === '' || $shippingStreet === '' || $shippingHouseNo === '')) {
     error_response('Az irányítószám, a város, az utca és a házszám megadása kötelező futáros kiszállításnál.');
 }
+if (!$termsAccepted) error_response('A vásárlási feltételek elfogadása kötelező.');
 if (!$items) error_response('Invalid input: items');
+
+function is_valid_hu_phone(string $v): bool {
+    $digits = preg_replace('/[\s\-().]/', '', $v);
+    return (bool) preg_match('/^(\+36|06)\d{8,9}$/', $digits);
+}
 
 // A régebbi, egyben tárolt "shipping_address" mezőt is feltöltjük a
 // tagolt részekből — ez marad a kompakt megjelenítéshez (pl. rendelések
@@ -95,14 +107,14 @@ try {
     $stmt = $mysqli->prepare(
         "INSERT INTO orders (
             user_id, status, delivery_method, payment_method,
-            customer_name, customer_email, customer_phone, shipping_address,
+            customer_name, customer_email, customer_phone, customer_type, tax_number, shipping_address,
             shipping_zip, shipping_city, shipping_street, shipping_house_no,
             subtotal, discount, shipping_cost, total
-        ) VALUES (?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ) VALUES (?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     $stmt->bind_param(
-        'issssssssssdddd',
-        $userId, $deliveryMethod, $paymentMethod, $customerName, $customerEmail, $customerPhone,
+        'issssssssssssdddd',
+        $userId, $deliveryMethod, $paymentMethod, $customerName, $customerEmail, $customerPhone, $customerType, $taxNumber,
         $shippingAddress, $shippingZip, $shippingCity, $shippingStreet, $shippingHouseNo,
         $subtotal, $discount, $shippingCost, $total
     );
@@ -131,7 +143,8 @@ $order = [
     'id' => $orderId, 'user_id' => $userId, 'status' => 'new',
     'delivery_method' => $deliveryMethod, 'payment_method' => $paymentMethod,
     'customer_name' => $customerName, 'customer_email' => $customerEmail,
-    'customer_phone' => $customerPhone, 'shipping_address' => $shippingAddress,
+    'customer_phone' => $customerPhone, 'customer_type' => $customerType, 'tax_number' => $taxNumber,
+    'shipping_address' => $shippingAddress,
     'shipping_zip' => $shippingZip, 'shipping_city' => $shippingCity,
     'shipping_street' => $shippingStreet, 'shipping_house_no' => $shippingHouseNo,
     'subtotal' => $subtotal, 'discount' => $discount, 'shipping_cost' => $shippingCost, 'total' => $total,
@@ -163,6 +176,7 @@ function notify_new_order(array $config, int $orderId, array $order, array $item
     $lines[] = 'Név: ' . $order['customer_name'];
     $lines[] = 'Email: ' . $order['customer_email'];
     $lines[] = 'Telefonszám: ' . $order['customer_phone'];
+    $lines[] = 'Típus: ' . ($order['customer_type'] === 'company' ? 'Cég (adószám: ' . $order['tax_number'] . ')' : 'Magánszemély');
     $lines[] = '';
     $lines[] = 'Szállítás';
     $lines[] = '---------';

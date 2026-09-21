@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_name     VARCHAR(200) NOT NULL DEFAULT '',
   customer_email    VARCHAR(190) NOT NULL DEFAULT '',
   customer_phone    VARCHAR(50) NOT NULL DEFAULT '',
+  customer_type     ENUM('individual','company') NOT NULL DEFAULT 'individual',
+  tax_number        VARCHAR(20) NULL,
   shipping_address  VARCHAR(500) NOT NULL DEFAULT '',
   shipping_zip      VARCHAR(10) NULL,
   shipping_city     VARCHAR(120) NULL,
