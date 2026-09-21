@@ -138,6 +138,10 @@
   .felni-subhead:first-of-type{margin-top:0;}
   .check-row{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:8px;cursor:pointer;}
   .check-row input{accent-color:var(--ink);}
+  .felni-et-select{
+    width:100%;padding:8px 10px;border:1px solid var(--graphite-light);border-radius:var(--radius);
+    font-size:13px;font-family:'IBM Plex Mono',monospace;color:var(--ink);background:var(--paper);
+  }
   .price-inputs{display:flex;gap:8px;align-items:center;}
   .price-inputs input{width:70px;padding:6px 8px;border:1px solid var(--graphite-light);font-family:'IBM Plex Mono',monospace;font-size:12px;border-radius:var(--radius);}
   .reset-link{background:none;border:none;text-decoration:underline;font-size:12px;color:var(--graphite);padding:0;}
@@ -536,7 +540,7 @@
         <div class="felni-subhead">Osztókör</div>
         <div id="pcdFilters"></div>
         <div class="felni-subhead">ET</div>
-        <div id="etFilters"></div>
+        <select id="etFilterSelect" class="felni-et-select"><option value="">Bármelyik</option></select>
       </div>
       <div class="filter-group">
         <div class="flabel">MÁRKA</div>
@@ -1344,17 +1348,19 @@ function populateFelniFilters(){
   const widths = uniq(rimProducts.map(p=>p.rimWidth).filter(v=>v)).sort(compareSizeLabels);
   const holeContainer = document.getElementById('holeCountFilters');
   const pcdContainer = document.getElementById('pcdFilters');
-  const etContainer = document.getElementById('etFilters');
+  const etSelect = document.getElementById('etFilterSelect');
   const sizeContainer = document.getElementById('felniSizeFilters');
   const widthContainer = document.getElementById('felniWidthFilters');
   holeContainer.innerHTML = holeCounts.map(h=>`<label class="check-row"><input type="checkbox" class="holecount-filter" value="${h}"> ${h} furatos</label>`).join('');
   pcdContainer.innerHTML = pcds.map(v=>`<label class="check-row"><input type="checkbox" class="pcd-filter" value="${v}"> ${v}</label>`).join('');
-  etContainer.innerHTML = ets.map(v=>`<label class="check-row"><input type="checkbox" class="et-filter" value="${v}"> ET${v}</label>`).join('');
+  const etCurrent = activeEtFilters[0] || '';
+  etSelect.innerHTML = '<option value="">Bármelyik</option>' + ets.map(v=>`<option value="${v}">ET${v}</option>`).join('');
+  etSelect.value = ets.includes(etCurrent) ? etCurrent : '';
   sizeContainer.innerHTML = sizes.map(s=>`<label class="check-row"><input type="checkbox" class="felnisize-filter" value="${s}"> R${s}</label>`).join('');
   widthContainer.innerHTML = widths.map(v=>`<label class="check-row"><input type="checkbox" class="felniwidth-filter" value="${v}"> ${v}</label>`).join('');
   holeContainer.querySelectorAll('.holecount-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
   pcdContainer.querySelectorAll('.pcd-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
-  etContainer.querySelectorAll('.et-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
+  etSelect.addEventListener('change', onFilterChange);
   sizeContainer.querySelectorAll('.felnisize-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
   widthContainer.querySelectorAll('.felniwidth-filter').forEach(cb=>cb.addEventListener('change', onFilterChange));
 }
@@ -1590,7 +1596,8 @@ function onFilterChange(){
   activeBrandFilters = [...document.querySelectorAll('.brand-filter:checked')].map(cb=>cb.value);
   activeHoleCountFilters = [...document.querySelectorAll('.holecount-filter:checked')].map(cb=>cb.value);
   activePcdFilters = [...document.querySelectorAll('.pcd-filter:checked')].map(cb=>cb.value);
-  activeEtFilters = [...document.querySelectorAll('.et-filter:checked')].map(cb=>cb.value);
+  const etSelectValue = document.getElementById('etFilterSelect').value;
+  activeEtFilters = etSelectValue ? [etSelectValue] : [];
   activeFelniSizeFilters = [...document.querySelectorAll('.felnisize-filter:checked')].map(cb=>cb.value);
   activeFelniWidthFilters = [...document.querySelectorAll('.felniwidth-filter:checked')].map(cb=>cb.value);
   currentPage = 1;
@@ -1602,7 +1609,8 @@ document.querySelectorAll('.vehicle-filter').forEach(cb=>cb.addEventListener('ch
 document.getElementById('priceMin').addEventListener('input', ()=>{ currentPage = 1; renderGrid(); });
 document.getElementById('priceMax').addEventListener('input', ()=>{ currentPage = 1; renderGrid(); });
 document.getElementById('resetFilters').addEventListener('click', ()=>{
-  document.querySelectorAll('.season-filter, .vehicle-filter, .brand-filter, .holecount-filter, .pcd-filter, .et-filter, .felnisize-filter, .felniwidth-filter').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.season-filter, .vehicle-filter, .brand-filter, .holecount-filter, .pcd-filter, .felnisize-filter, .felniwidth-filter').forEach(cb=>cb.checked=false);
+  document.getElementById('etFilterSelect').value='';
   document.getElementById('priceMin').value='';
   document.getElementById('priceMax').value='';
   activeSeasonFilters=[]; activeVehicleTypeFilters=[]; activeBrandFilters=[]; activeHoleCountFilters=[]; activePcdFilters=[]; activeEtFilters=[]; activeFelniSizeFilters=[]; activeFelniWidthFilters=[];
