@@ -132,12 +132,6 @@
   /* LAYOUT */
   .shop{display:grid;grid-template-columns:220px 1fr;gap:40px;padding:44px 0 80px;}
   .sidebar h3{font-size:26px;margin-bottom:14px;}
-  .booking-cta{
-    display:block;text-align:center;background:var(--signal);color:var(--paper);
-    padding:12px 16px;border-radius:var(--radius);font-weight:600;font-size:14px;
-    text-decoration:none;margin-bottom:24px;
-  }
-  .booking-cta:hover{filter:brightness(0.95);}
   .filter-group{margin-bottom:28px;}
   .filter-group .flabel{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;}
   .felni-subhead{font-size:12px;color:var(--graphite);margin:10px 0 6px;}
@@ -305,6 +299,8 @@
   }
   .page-tab .tab-hide:hover{color:var(--ink);}
   .page-tab.tab-hidden{opacity:.5;font-style:italic;}
+  .nav-booking-tab{background:var(--signal);color:var(--paper);font-weight:600;text-decoration:none;}
+  .nav-booking-tab:hover{color:var(--paper);filter:brightness(0.95);}
   .page-nav-toggle{display:none;}
 
   /* EXCEL VIEW */
@@ -517,7 +513,6 @@
 <div class="wrap">
   <div class="shop">
     <aside class="sidebar">
-      <a class="booking-cta" href="https://idopontfoglalas.gumiszervizem.hu/szervizek/gumipontszervizkft" target="_blank" rel="noopener noreferrer">Időpontfoglalás</a>
       <h3>Szűrés</h3>
       <div class="filter-group">
         <div class="flabel">ÉVSZAK</div>
@@ -2461,10 +2456,10 @@ function renderPageNav(){
       ${isAdmin && t.id!=='shop'?`<span class="tab-hide" data-toggle-hide="${t.id}">${hidden?'Mutat':'Elrejt'}</span>`:''}
       ${isAdmin && t.deletable?`<span class="tab-close" data-del-page="${t.id}">×</span>`:''}
     </button>`;
-  }).join('');
+  }).join('') + `<a class="page-tab nav-booking-tab" href="https://idopontfoglalas.gumiszervizem.hu/szervizek/gumipontszervizkft" target="_blank" rel="noopener noreferrer">ONLINE Időpontfoglalás</a>`;
   document.getElementById('pageNavCurrentLabel').textContent = pageLabel(activePageId);
 
-  nav.querySelectorAll('.page-tab').forEach(btn=>{
+  nav.querySelectorAll('.page-tab:not(.nav-booking-tab)').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       if(e.target.dataset.delPage || e.target.dataset.toggleHide) return;
       switchPage(btn.dataset.page);
@@ -2496,7 +2491,7 @@ function renderPageNav(){
 
   if(isAdmin){
     let dragSrcId = null;
-    nav.querySelectorAll('.page-tab').forEach(btn=>{
+    nav.querySelectorAll('.page-tab:not(.nav-booking-tab)').forEach(btn=>{
       btn.addEventListener('dragstart', ()=>{
         dragSrcId = btn.dataset.page;
         btn.classList.add('dragging-tab');
