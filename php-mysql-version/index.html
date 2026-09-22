@@ -192,6 +192,13 @@
   /* MODALS */
   .overlay{position:fixed;inset:0;background:rgba(21,23,26,0.55);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
   .overlay.open{display:flex;}
+  .gdpr-overlay{position:fixed;inset:0;background:rgba(21,23,26,0.55);display:none;align-items:center;justify-content:center;z-index:250;padding:20px;}
+  .gdpr-overlay.open{display:flex;}
+  .gdpr-modal{background:var(--paper);width:100%;max-width:480px;border-radius:var(--radius);border:1px solid var(--ink);padding:24px;}
+  .gdpr-modal h3{font-size:20px;margin-bottom:10px;}
+  .gdpr-modal p{font-size:14px;color:var(--graphite);line-height:1.6;margin-bottom:18px;}
+  .gdpr-modal a{color:var(--ink);text-decoration:underline;text-underline-offset:2px;}
+  .gdpr-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
   .modal{background:var(--paper);width:100%;max-width:440px;border-radius:var(--radius);border:1px solid var(--ink);max-height:88vh;overflow-y:auto;}
   .modal.wide{max-width:760px;}
   .modal.order-detail-modal{max-width:1140px;}
@@ -430,6 +437,18 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
+<!-- GDPR / ADATKEZELÉSI HOZZÁJÁRULÁS -->
+<div class="gdpr-overlay" id="gdprOverlay">
+  <div class="gdpr-modal">
+    <h3>Adatkezelési tájékoztató</h3>
+    <p>A gumipont.hu-t üzemeltető Gumipont Szerviz Kft. a megrendelések teljesítéséhez szükséges adatokat (név, elérhetőség, szállítási cím) kezeli, valamint a kosár működéséhez elengedhetetlen, kizárólag technikai sütiket használ. Harmadik félnek adatot nem adunk tovább, marketingcélú sütit nem alkalmazunk. A részletekről az <a href="#" id="gdprMoreLink">Adatkezelési tájékoztatóban</a> olvashatsz bővebben.</p>
+    <div class="gdpr-actions">
+      <button class="btn-ghost" id="gdprReject">Elutasítom</button>
+      <button class="btn-primary" id="gdprAccept">Elfogadom</button>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="headbar">
     <div class="logo">gumipont.hu<span>GUMIK SZÁM SZERINT</span></div>
@@ -628,6 +647,16 @@
       <button class="btn-ghost" id="termsEditBtn" style="display:none;">Szerkesztés</button>
     </div>
     <div class="about-text" id="termsText"></div>
+  </div>
+</div>
+
+<div id="privacyView" style="display:none;">
+  <div class="wrap content-wrap">
+    <div class="results-head">
+      <h3>Adatkezelés</h3>
+      <button class="btn-ghost" id="privacyEditBtn" style="display:none;">Szerkesztés</button>
+    </div>
+    <div class="about-text" id="privacyText"></div>
   </div>
 </div>
 
@@ -1031,6 +1060,34 @@
       <div class="modal-actions">
         <button class="btn-ghost" data-close="termsEditOverlay">Mégse</button>
         <button class="btn-primary" id="termsSave">Mentés</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADATKEZELÉSI TÁJÉKOZTATÓ SZERKESZTÉSE -->
+<div class="overlay" id="privacyEditOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h3>Adatkezelési tájékoztató szerkesztése</h3><button class="modal-close" data-close="privacyEditOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="rte-toolbar" id="privacyToolbar">
+        <button type="button" data-cmd="bold"><b>Félkövér</b></button>
+        <button type="button" data-cmd="italic"><i>Dőlt</i></button>
+        <button type="button" data-cmd="formatBlock" data-value="H1">Cím</button>
+        <button type="button" data-cmd="formatBlock" data-value="H2">Alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="H3">Kis alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="P">Bekezdés</button>
+        <button type="button" data-cmd="insertUnorderedList">Felsorolás</button>
+        <button type="button" data-cmd="createLink">Link</button>
+        <button type="button" data-fontsize="13">Kicsi betű</button>
+        <button type="button" data-fontsize="16">Normál betű</button>
+        <button type="button" data-fontsize="20">Nagy betű</button>
+        <button type="button" data-fontsize="28">Extra nagy betű</button>
+      </div>
+      <div class="rte-content" id="privacyEditor" contenteditable="true"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close="privacyEditOverlay">Mégse</button>
+        <button class="btn-primary" id="privacySave">Mentés</button>
       </div>
     </div>
   </div>
@@ -2485,6 +2542,7 @@ function pageLabel(id){
   if(id==='rolunk') return 'Rólunk';
   if(id==='elerhetosegek') return 'Elérhetőségeink';
   if(id==='feltetelek') return 'Vásárlási feltételek';
+  if(id==='adatkezeles') return 'Adatkezelés';
   const pg = pages.find(p=>p.id===id);
   return pg ? pg.title : '';
 }
@@ -2495,6 +2553,7 @@ function orderedNavTabs(){
     { id: 'rolunk', label: 'Rólunk' },
     { id: 'elerhetosegek', label: 'Elérhetőségeink' },
     { id: 'feltetelek', label: 'Vásárlási feltételek' },
+    { id: 'adatkezeles', label: 'Adatkezelés' },
     ...pages.map(pg => ({ id: pg.id, label: pg.title, deletable: true })),
   ];
   const order = siteSettings.navOrder;
@@ -2641,6 +2700,7 @@ function hideAllViews(){
   document.getElementById('aboutView').style.display='none';
   document.getElementById('contactView').style.display='none';
   document.getElementById('termsView').style.display='none';
+  document.getElementById('privacyView').style.display='none';
 }
 
 function switchPage(pageId){
@@ -2660,6 +2720,9 @@ function switchPage(pageId){
   } else if(pageId==='feltetelek'){
     document.getElementById('termsView').style.display='block';
     renderTerms();
+  } else if(pageId==='adatkezeles'){
+    document.getElementById('privacyView').style.display='block';
+    renderPrivacy();
   } else {
     document.getElementById('excelView').style.display='block';
     renderExcelPage(pageId);
@@ -2794,7 +2857,69 @@ const DEFAULT_CONTACT = {
   email: 'info@gumipont.hu',
   note: ''
 };
-let siteContent = { shopIntro: DEFAULT_SHOP_INTRO, heroSize: DEFAULT_HERO_SIZE, about: DEFAULT_ABOUT, terms: DEFAULT_TERMS, contact: {...DEFAULT_CONTACT} };
+const DEFAULT_PRIVACY = `<p>Jelen tájékoztató célja, hogy átlátható tájékoztatást nyújtson arról, hogy a Gumipont Szerviz Kft. (a továbbiakban: Adatkezelő) a gumipont.hu weboldal (a továbbiakban: Weboldal) üzemeltetése és a megrendelések teljesítése során milyen személyes adatokat, milyen célból, milyen jogalapon és meddig kezel, valamint milyen jogok illetik meg ebben az érintetteket. A tájékoztató az Európai Parlament és a Tanács (EU) 2016/679 rendelete (általános adatvédelmi rendelet, "GDPR"), valamint az információs önrendelkezési jogról és az információszabadságról szóló 2011. évi CXII. törvény ("Infotv.") figyelembevételével készült.</p>
+
+<h2>1. Az adatkezelő adatai</h2>
+<p>Név: Gumipont Szerviz Kft.<br>
+Székhely/levelezési cím: ${DEFAULT_CONTACT.address}<br>
+Cégjegyzékszám: [pótlandó — a cég hivatalos cégjegyzékszáma]<br>
+Adószám: [pótlandó — a cég hivatalos adószáma]<br>
+E-mail: ${DEFAULT_CONTACT.email}<br>
+Telefon: ${DEFAULT_CONTACT.phone}</p>
+
+<h2>2. Milyen adatokat kezelünk, milyen célból és jogalapon</h2>
+<h3>2.1 Megrendelés leadása és teljesítése</h3>
+<p>Kezelt adatok: név, e-mail cím, telefonszám, számlázási adatok (magánszemély vagy cég esetén az adószám), szállítási cím (irányítószám, város, utca, házszám), a megrendelt termékek és a fizetendő összeg.<br>
+Cél: a megrendelés feldolgozása, a termékek kiszállítása vagy átvételre előkészítése, számla kiállítása, a vásárlóval való kapcsolattartás a rendeléssel összefüggésben.<br>
+Jogalap: a GDPR 6. cikk (1) bekezdés b) pontja — a szerződés teljesítése.<br>
+Megőrzési idő: a számviteli bizonylatokra vonatkozó jogszabályi kötelezettség alapján 8 év (2000. évi C. törvény a számvitelről).</p>
+
+<h3>2.2 Regisztráció / felhasználói fiók</h3>
+<p>Kezelt adatok: név, e-mail cím, jelszó (titkosítva tárolva).<br>
+Cél: bejelentkezés, korábbi rendelések megtekintése, gyorsabb újbóli vásárlás.<br>
+Jogalap: az érintett hozzájárulása (GDPR 6. cikk (1) bekezdés a) pont).<br>
+Megőrzési idő: a fiók törléséig, illetve a hozzájárulás visszavonásáig.</p>
+
+<h3>2.3 Kapcsolatfelvétel</h3>
+<p>Kezelt adatok: az üzenetben megadott név, e-mail cím és az üzenet tartalma.<br>
+Cél: a megkeresés megválaszolása.<br>
+Jogalap: az érintett hozzájárulása (GDPR 6. cikk (1) bekezdés a) pont).<br>
+Megőrzési idő: a megkeresés elintézésétől számított 1 év.</p>
+
+<h3>2.4 Sütik (cookie-k)</h3>
+<p>A Weboldal kizárólag a működéséhez feltétlenül szükséges, ún. technikai sütiket használ (pl. a bejelentkezési munkamenet fenntartásához, illetve a kosár tartalmának böngészőben történő megjegyzéséhez). Ezek nem alkalmasak az érintett azonosítására, nem szolgálnak marketing- vagy statisztikai célt, és nem továbbítanak adatot harmadik fél részére. Jogalapjuk a GDPR 6. cikk (1) bekezdés f) pontja szerinti jogos érdek, illetve az elektronikus hírközlésről szóló 2003. évi C. törvény 155. § (4) bekezdése alapján a szolgáltatás nyújtásához elengedhetetlen sütik hozzájárulás nélkül is elhelyezhetők. Amennyiben a Weboldal a jövőben statisztikai vagy marketingcélú sütiket is alkalmazna, azokról és az ehhez szükséges hozzájárulásról az Adatkezelő előzetesen, külön tájékoztatást ad.</p>
+
+<h2>3. Adattovábbítás, adatfeldolgozók</h2>
+<p>A megrendelések teljesítéséhez az Adatkezelő az alábbi adatfeldolgozókat/címzetteket veheti igénybe:</p>
+<ul>
+<li>Tárhelyszolgáltató — a Weboldalt és az adatbázist kiszolgáló szerver üzemeltetője.</li>
+<li>Futárszolgálat / szállítmányozó partner — a kiszállítás teljesítéséhez szükséges név, cím és telefonszám erejéig.</li>
+<li>E-mail küldő szolgáltatás — a rendelés-visszaigazoló és egyéb rendszerüzenetek kézbesítéséhez.</li>
+</ul>
+<p>Az Adatkezelő az érintettek adatait harmadik félnek reklám vagy egyéb, a szerződés teljesítésén kívüli célból nem adja át, és nem értékesíti.</p>
+
+<h2>4. Az érintettek jogai</h2>
+<p>Az érintett a rá vonatkozó személyes adatok kezelésével összefüggésben jogosult:</p>
+<ul>
+<li>tájékoztatást kérni az adatkezelésről és hozzáférni a kezelt adatokhoz,</li>
+<li>kérni azok helyesbítését, törlését vagy kezelésének korlátozását,</li>
+<li>tiltakozni az adatkezelés ellen,</li>
+<li>élni az adathordozhatósághoz való jogával,</li>
+<li>hozzájáruláson alapuló adatkezelés esetén a hozzájárulást bármikor, korlátozás nélkül visszavonni (ez nem érinti a visszavonás előtti adatkezelés jogszerűségét).</li>
+</ul>
+<p>Ezen jogok a ${DEFAULT_CONTACT.email} e-mail címen keresztül gyakorolhatók.</p>
+
+<h2>5. Jogorvoslati lehetőségek</h2>
+<p>Amennyiben az érintett megítélése szerint a rá vonatkozó adatkezelés sérti a GDPR vagy az Infotv. rendelkezéseit, panasszal élhet a Nemzeti Adatvédelmi és Információszabadság Hatóságnál (NAIH):<br>
+Cím: 1055 Budapest, Falk Miksa utca 9-11.<br>
+Postacím: 1363 Budapest, Pf. 9.<br>
+E-mail: ugyfelszolgalat@naih.hu<br>
+Weboldal: naih.hu</p>
+<p>Az érintett a jogainak megsértése esetén a lakóhelye vagy tartózkodási helye szerint illetékes törvényszékhez is fordulhat.</p>
+
+<h2>6. A tájékoztató módosítása</h2>
+<p>Az Adatkezelő fenntartja a jogot jelen tájékoztató módosítására; a mindenkor hatályos változat a Weboldalon érhető el.</p>`;
+let siteContent = { shopIntro: DEFAULT_SHOP_INTRO, heroSize: DEFAULT_HERO_SIZE, about: DEFAULT_ABOUT, terms: DEFAULT_TERMS, privacy: DEFAULT_PRIVACY, contact: {...DEFAULT_CONTACT} };
 
 async function loadContent(){
   try{
@@ -2805,6 +2930,7 @@ async function loadContent(){
       heroSize: c.hero_size ?? DEFAULT_HERO_SIZE,
       about: c.about ?? DEFAULT_ABOUT,
       terms: c.terms ?? DEFAULT_TERMS,
+      privacy: c.privacy ?? DEFAULT_PRIVACY,
       contact: c.contact ?? {...DEFAULT_CONTACT},
     };
   }catch(e){
@@ -3043,6 +3169,7 @@ wireEditor('shopIntroToolbar', 'shopIntroEditor', 'shopIntroImgInput');
 wireEditor('heroSizeToolbar', 'heroSizeEditor', 'heroSizeImgInput');
 wireEditor('contactNoteToolbar', 'contactNoteEditor', 'contactNoteImgInput');
 wireEditor('termsToolbar', 'termsEditor', null);
+wireEditor('privacyToolbar', 'privacyEditor', null);
 wireEditor('pageEditToolbar', 'pageEditEditor', 'pageEditImgInput');
 
 /* ---- Webshop bevezető ---- */
@@ -3137,6 +3264,28 @@ document.getElementById('termsSave').addEventListener('click', async ()=>{
   closeOverlay('termsEditOverlay');
 });
 
+function renderPrivacy(){
+  document.getElementById('privacyEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
+  document.getElementById('privacyText').innerHTML = siteContent.privacy;
+  wireContentImages(document.getElementById('privacyText'));
+}
+document.getElementById('privacyEditBtn').addEventListener('click', ()=>{
+  document.getElementById('privacyEditor').innerHTML = siteContent.privacy;
+  openOverlay('privacyEditOverlay');
+});
+document.getElementById('privacySave').addEventListener('click', async ()=>{
+  const value = document.getElementById('privacyEditor').innerHTML.trim();
+  try{
+    await apiJson('content/update.php', 'POST', { key: 'privacy', value });
+  }catch(e){
+    alert('Nem sikerült menteni: ' + e.message);
+    return;
+  }
+  siteContent.privacy = value;
+  renderPrivacy();
+  closeOverlay('privacyEditOverlay');
+});
+
 /* ---- Elérhetőségeink ---- */
 function renderContact(){
   document.getElementById('contactEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
@@ -3181,6 +3330,25 @@ document.getElementById('contactSave').addEventListener('click', async ()=>{
   closeOverlay('contactEditOverlay');
 });
 
+/* ---------- GDPR HOZZÁJÁRULÁS ---------- */
+const GDPR_CONSENT_KEY = 'gumipont_gdpr_consent';
+function initGdprConsent(){
+  let consent = null;
+  try{ consent = JSON.parse(localStorage.getItem(GDPR_CONSENT_KEY)); }catch(e){}
+  if(!consent || !consent.choice) openOverlay('gdprOverlay');
+}
+function recordGdprConsent(choice){
+  try{ localStorage.setItem(GDPR_CONSENT_KEY, JSON.stringify({ choice, at: new Date().toISOString() })); }catch(e){}
+  closeOverlay('gdprOverlay');
+}
+document.getElementById('gdprAccept').addEventListener('click', ()=>recordGdprConsent('accepted'));
+document.getElementById('gdprReject').addEventListener('click', ()=>recordGdprConsent('rejected'));
+document.getElementById('gdprMoreLink').addEventListener('click', (e)=>{
+  e.preventDefault();
+  closeOverlay('gdprOverlay');
+  switchPage('adatkezeles');
+});
+
 /* ---------- INDÍTÁS ---------- */
 function checkResetTokenInUrl(){
   const params = new URLSearchParams(location.search);
@@ -3210,6 +3378,7 @@ function checkResetTokenInUrl(){
   renderHeroSize();
   renderPageNav();
   checkResetTokenInUrl();
+  initGdprConsent();
   document.getElementById('footerYear').textContent = new Date().getFullYear();
 })();
 </script>
