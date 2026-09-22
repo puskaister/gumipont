@@ -31,4 +31,5 @@ jobs:
             **/.git*/**
             **/api/config.php
             **/uploads/**
+            **/backups/**
             **/README.md
