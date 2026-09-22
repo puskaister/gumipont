@@ -9,20 +9,25 @@ declare(strict_types=1);
 // Az adatbázishoz és fájlokhoz hasonlóan ez is maradandó, a cron minden
 // héten újra lefuttatja.
 //
-// Beállítás a tárhelyen (Cron Jobs):
-//  - Ha a cron parancssorból (CLI) tud PHP-t futtatni, ez a legegyszerűbb és
-//    legbiztonságosabb: php /teljes/eleresi/ut/scripts/weekly_backup.php
-//  - Ha a cron csak egy URL-t tud rendszeresen meghívni, először vegyél fel
-//    az api/config.php-ba egy 'backup_token' => 'egy-hosszú-véletlen-string'
-//    sort, majd a cron a
-//    https://a-domained/scripts/weekly_backup.php?token=EZ-A-STRING
-//    URL-t hívja meg. Token nélkül/hibás tokennel webről nem fut le.
+// Beállítás a tárhelyen (Cron Jobs) — pl.:
+//  /opt/alt/php74/usr/bin/php-cgi /teljes/eleresi/ut/scripts/weekly_backup.php >/dev/null 2>&1
+// Ez a php-cgi-s hívás (ahogy a legtöbb megosztott tárhely cron feladata is
+// fut) biztonságosnak számít, mert nincs mögötte valódi HTTP-kérés (nincs
+// REQUEST_METHOD) — tokent EHHEZ nem kell beállítani.
+// Ha a cron csak egy URL-t tud rendszeresen meghívni (böngészőből/curl-lal
+// elérhető cím), akkor vegyél fel az api/config.php-ba egy
+// 'backup_token' => 'egy-hosszú-véletlen-string' sort, és a cron a
+// https://a-domained/scripts/weekly_backup.php?token=EZ-A-STRING
+// URL-t hívja meg. Token nélkül/hibás tokennel webről nem fut le.
 // Ajánlott gyakoriság: hetente egyszer (pl. hétfőn hajnalban).
 
-$isCli = PHP_SAPI === 'cli';
+// A cron (CLI vagy php-cgi-n keresztül, valódi HTTP-kérés/REQUEST_METHOD
+// nélkül) mindig megbízhatónak számít; csak a ténylegesen böngészőből/curl-lal,
+// HTTP-kérésként érkező hívásnál kérünk tokent.
+$isTrustedInvocation = PHP_SAPI === 'cli' || !isset($_SERVER['REQUEST_METHOD']);
 $config = require __DIR__ . '/../api/config.php';
 
-if (!$isCli) {
+if (!$isTrustedInvocation) {
     $expectedToken = $config['backup_token'] ?? null;
     $givenToken = $_GET['token'] ?? '';
     if (!$expectedToken || !hash_equals((string) $expectedToken, (string) $givenToken)) {
@@ -150,5 +155,5 @@ try {
         notify($config, false, $errorMessage);
     }
     out('HIBA: ' . $e->getMessage());
-    if (!$isCli) http_response_code(500);
+    if (isset($_SERVER['REQUEST_METHOD'])) http_response_code(500);
 }
