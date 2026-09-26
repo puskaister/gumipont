@@ -310,11 +310,6 @@
   }
   .page-tab .tab-hide:hover{color:var(--ink);}
   .page-tab.tab-hidden{opacity:.5;font-style:italic;}
-  .page-tab .tab-pin{
-    color:var(--graphite-light);font-size:10px;line-height:1;padding:0 2px;
-    text-decoration:underline;text-underline-offset:2px;
-  }
-  .page-tab .tab-pin:hover{color:var(--ink);}
   .nav-booking-tab{background:var(--signal);color:var(--paper);font-weight:600;text-decoration:none;}
   .nav-booking-tab:hover{color:var(--paper);filter:brightness(0.95);}
   .page-nav-toggle{display:none;}
@@ -2619,51 +2614,37 @@ async function toggleNavHidden(id){
   }
 }
 
-async function toggleTopLevelNav(id){
-  const topLevel = new Set(siteSettings.topLevelNavIds);
-  if(topLevel.has(id)) topLevel.delete(id); else topLevel.add(id);
-  const topLevelNavIds = [...topLevel];
-  siteSettings.topLevelNavIds = topLevelNavIds;
-  renderPageNav();
-  try{
-    await apiJson('settings/update.php', 'POST', { topLevelNavIds });
-  }catch(err){
-    alert('Nem sikerült menteni a menü elrendezését: ' + err.message);
-  }
-}
-
 function renderPageNav(){
   const nav = document.getElementById('pageNav');
   const allTabs = orderedNavTabs();
   const tabs = isAdmin ? allTabs : allTabs.filter(t => !siteSettings.hiddenNavIds.includes(t.id));
   // A "Webshop" mindig önálló, fix fül marad. A többi oldal közül azok,
-  // amiket az admin "Kiemel"-t nyomva megjelölt (pl. termékkategória-oldalak:
+  // amiket az admin kihúzott a felső sorba (pl. termékkategória-oldalak:
   // Téli/Nyári/Teher gumik, Felnik), szintén önálló fülként jelennek meg;
   // minden más (Rólunk, Elérhetőségeink, Vásárlási feltételek, Adatkezelés,
   // egyéb feltöltött oldalak) az "Egyéb információk" legördülő almenübe kerül.
+  // Admin a fülek közötti húzással mozgathatja át egyiket a másikba.
   const shopTab = tabs.find(t => t.id === 'shop');
   const rest = tabs.filter(t => t.id !== 'shop');
   const topLevelExtra = rest.filter(t => siteSettings.topLevelNavIds.includes(t.id));
   const dropdownTabs = rest.filter(t => !siteSettings.topLevelNavIds.includes(t.id));
   const subActive = dropdownTabs.some(t => t.id === activePageId);
 
-  const renderTab = (t) => {
+  const renderTab = (t, zone) => {
     const hidden = siteSettings.hiddenNavIds.includes(t.id);
-    const isTopLevel = siteSettings.topLevelNavIds.includes(t.id);
     return `
-    <button class="page-tab ${activePageId===t.id?'active':''} ${hidden?'tab-hidden':''}" data-page="${t.id}" ${isAdmin && t.id!=='shop' && !isTopLevel?'draggable="true"':''}>
+    <button class="page-tab ${activePageId===t.id?'active':''} ${hidden?'tab-hidden':''}" data-page="${t.id}" data-zone="${zone}" ${isAdmin && t.id!=='shop'?'draggable="true"':''}>
       ${t.label}
-      ${isAdmin && t.id!=='shop'?`<span class="tab-pin" data-toggle-toplevel="${t.id}">${isTopLevel?'Almenübe':'Kiemel'}</span>`:''}
       ${isAdmin && t.id!=='shop'?`<span class="tab-hide" data-toggle-hide="${t.id}">${hidden?'Mutat':'Elrejt'}</span>`:''}
       ${isAdmin && t.deletable?`<span class="tab-close" data-del-page="${t.id}">×</span>`:''}
     </button>`;
   };
 
-  nav.innerHTML = (shopTab ? renderTab(shopTab) : '')
-    + topLevelExtra.map(renderTab).join('')
+  nav.innerHTML = (shopTab ? renderTab(shopTab, 'top') : '')
+    + topLevelExtra.map(t=>renderTab(t, 'top')).join('')
     + `<div class="page-tab-group" id="moreNavGroup">
       <button type="button" class="page-tab-more ${subActive?'active':''}" id="moreNavToggle">Egyéb információk ▾</button>
-      <div class="page-tab-dropdown">${dropdownTabs.map(renderTab).join('')}</div>
+      <div class="page-tab-dropdown" id="moreNavDropdown">${dropdownTabs.map(t=>renderTab(t, 'dropdown')).join('')}</div>
     </div>`
     + `<a class="page-tab nav-booking-tab" href="https://idopontfoglalas.gumiszervizem.hu/szervizek/gumipontszervizkft" target="_blank" rel="noopener noreferrer">ONLINE Időpontfoglalás</a>`;
   document.getElementById('pageNavCurrentLabel').textContent = pageLabel(activePageId);
@@ -2683,16 +2664,10 @@ function renderPageNav(){
 
   nav.querySelectorAll('.page-tab:not(.nav-booking-tab)').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
-      if(e.target.dataset.delPage || e.target.dataset.toggleHide || e.target.dataset.toggleToplevel) return;
+      if(e.target.dataset.delPage || e.target.dataset.toggleHide) return;
       switchPage(btn.dataset.page);
       nav.classList.remove('open');
       document.getElementById('pageNavToggle').setAttribute('aria-expanded', 'false');
-    });
-  });
-  nav.querySelectorAll('[data-toggle-toplevel]').forEach(x=>{
-    x.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      toggleTopLevelNav(x.dataset.toggleToplevel);
     });
   });
   nav.querySelectorAll('[data-toggle-hide]').forEach(x=>{
@@ -2719,9 +2694,33 @@ function renderPageNav(){
 
   if(isAdmin){
     let dragSrcId = null;
-    // Csak az "Egyéb információk" almenün belüli fülek sorrendje cserélhető
-    // egymás közt — a Webshop mindig elöl marad, önálló, nem húzható.
-    nav.querySelectorAll('.page-tab-dropdown .page-tab').forEach(btn=>{
+
+    // Áthelyezi a húzott fület a cél-zónába (top = felső sor, dropdown =
+    // "Egyéb információk" alá), a targetId fül elé beszúrva — targetId
+    // hiányában (üres helyre ejtve) a zóna végére kerül.
+    async function moveDraggedTab(targetZone, targetId){
+      const topLevelSet = new Set(siteSettings.topLevelNavIds);
+      if(targetZone === 'top') topLevelSet.add(dragSrcId); else topLevelSet.delete(dragSrcId);
+      const topLevelNavIds = [...topLevelSet];
+
+      const ids = rest.map(t=>t.id).filter(id => id !== dragSrcId);
+      if(targetId && targetId !== 'shop' && ids.includes(targetId)){
+        ids.splice(ids.indexOf(targetId), 0, dragSrcId);
+      } else {
+        ids.push(dragSrcId);
+      }
+
+      siteSettings.topLevelNavIds = topLevelNavIds;
+      saveNavOrder(ids);
+      renderPageNav();
+      try{
+        await apiJson('settings/update.php', 'POST', { topLevelNavIds });
+      }catch(err){
+        alert('Nem sikerült menteni a menü elrendezését: ' + err.message);
+      }
+    }
+
+    nav.querySelectorAll('.page-tab[data-zone]').forEach(btn=>{
       btn.addEventListener('dragstart', ()=>{
         dragSrcId = btn.dataset.page;
         btn.classList.add('dragging-tab');
@@ -2734,15 +2733,28 @@ function renderPageNav(){
       });
       btn.addEventListener('drop', (e)=>{
         e.preventDefault();
-        const targetId = btn.dataset.page;
-        if(!dragSrcId || dragSrcId === targetId) return;
-        const ids = dropdownTabs.map(t=>t.id);
-        const from = ids.indexOf(dragSrcId);
-        const to = ids.indexOf(targetId);
-        ids.splice(to, 0, ids.splice(from, 1)[0]);
-        saveNavOrder(ids);
-        renderPageNav();
+        e.stopPropagation();
+        if(!dragSrcId || dragSrcId === btn.dataset.page) return;
+        moveDraggedTab(btn.dataset.zone, btn.dataset.page);
       });
+    });
+
+    // Ha nem egy konkrét fülre, hanem a csoport üres helyére ejtik (pl. az
+    // "Egyéb információk" fejlécére, vagy a lenyíló üres részére), a fül a
+    // megfelelő zóna végére kerül.
+    const moreGroup = document.getElementById('moreNavGroup');
+    moreGroup.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+    moreGroup.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(!dragSrcId) return;
+      moveDraggedTab('dropdown', null);
+    });
+    nav.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+    nav.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      if(!dragSrcId) return;
+      moveDraggedTab('top', null);
     });
   }
 }
