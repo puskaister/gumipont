@@ -1030,7 +1030,7 @@
         <div class="form-field"><label>Márka</label><input id="pfBrand"></div>
         <div class="form-field"><label>Típus</label><input id="pfModel"></div>
         <div class="form-field pf-tire-only"><label>Szélesség (mm)</label><input id="pfWidth" type="number"></div>
-        <div class="form-field pf-tire-only"><label>Profil (%)</label><input id="pfProfile" type="number"></div>
+        <div class="form-field pf-tire-only"><label>Profil (%)</label><input id="pfProfile" type="text" placeholder="pl. 55, R vagy -"></div>
         <div class="form-field"><label>Felni (col)</label><input id="pfRim" type="text" placeholder="pl. 16, 22.5 vagy 16C"></div>
         <div class="form-field pf-rim-only"><label>Szélesség</label><input id="pfRimWidth" placeholder="pl. 6,5 vagy 7J"></div>
         <div class="form-field pf-rim-only"><label>Furatok száma</label><input id="pfHoleCount" type="number" placeholder="pl. 5"></div>
@@ -1469,12 +1469,23 @@ function compareSizeLabels(a, b){
   return String(a).localeCompare(String(b));
 }
 
+// A gumi méretcímkéje — a "profil" mezőnél néhány valós gumiméretnél nincs
+// külön százalékos profilszám: csak "R" (pl. 175R14, radiál) vagy "-"
+// (pl. 7.50-16, diagonál) szerepel közvetlenül a szélesség és a felniméret
+// között, ilyenkor a szokásos "szélesség/profilR felniméret" alak helyett
+// ezt az egyszerűbb formát használjuk.
+function tireSizeLabel(p){
+  if(p.profile === 'R') return `${p.width}R${p.rim}`;
+  if(p.profile === '-') return `${p.width}-${p.rim}`;
+  return `${p.width}/${p.profile}R${p.rim}`;
+}
+
 function populateSpecDropdowns(){
   const widthSel = document.getElementById('fWidth');
   const profileSel = document.getElementById('fProfile');
   const rimSel = document.getElementById('fRim');
   const widths = uniq(products.map(p=>p.width).filter(w=>w!=null)).sort((a,b)=>a-b);
-  const profiles = uniq(products.map(p=>p.profile).filter(p=>p!=null)).sort((a,b)=>a-b);
+  const profiles = uniq(products.map(p=>p.profile).filter(p=>p!=null && p!=='')).sort(compareSizeLabels);
   const rims = uniq(products.map(p=>p.rim).filter(r=>r!=null)).sort(compareSizeLabels);
   widthSel.innerHTML = '<option value="">Bármelyik</option>' + widths.map(w=>`<option value="${w}">${w}</option>`).join('');
   profileSel.innerHTML = '<option value="">Bármelyik</option>' + profiles.map(p=>`<option value="${p}">${p}</option>`).join('');
@@ -1565,7 +1576,7 @@ function getFilteredProducts(){
   } else if(searchQuery.mode==='text' && searchQuery.text.trim()){
     const q = searchQuery.text.trim().toLowerCase().replace(/\s+/g,'');
     list = list.filter(p=>{
-      const sizePart = p.category==='tire' ? `${p.width}/${p.profile}r${p.rim}` : `r${p.rim}`;
+      const sizePart = p.category==='tire' ? tireSizeLabel(p).toLowerCase() : `r${p.rim}`;
       const hay = `${p.brand}${p.model}${sizePart}`.toLowerCase().replace(/\s+/g,'');
       return hay.includes(q);
     });
@@ -1625,7 +1636,7 @@ function renderGrid(){
       </div>
       <div class="card-brand">${p.brand}</div>
       <div class="card-model">${p.model}</div>
-      <div class="card-size">${isRim ? `R${p.rim}` : `${p.width}/${p.profile} R${p.rim}`}</div>
+      <div class="card-size">${isRim ? `R${p.rim}` : tireSizeLabel(p)}</div>
       ${isRim
         ? `<div class="card-specs"><span>Szélesség ${p.rimWidth||'—'}</span><span>Furatok száma ${p.holeCount||'—'}</span><span>Osztókör ${p.pcd||'—'}</span><span>ET ${p.et||'—'}</span></div>`
         : `<div class="card-specs"><span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span></div>`}
@@ -1701,7 +1712,7 @@ function openProductDetail(id){
     seasonTag.className = `season-tag ${seasonClass(p.season)}`;
   }
   document.getElementById('pdVehicleTag').textContent = vehicleTypeLabel(p.vehicleType);
-  document.getElementById('pdSize').textContent = isRim ? `R${p.rim}` : `${p.width}/${p.profile} R${p.rim}`;
+  document.getElementById('pdSize').textContent = isRim ? `R${p.rim}` : tireSizeLabel(p);
   document.getElementById('pdSpecs').innerHTML = isRim
     ? `<span>Szélesség ${p.rimWidth||'—'}</span><span>Furatok száma ${p.holeCount||'—'}</span><span>Osztókör ${p.pcd||'—'}</span><span>ET ${p.et||'—'}</span>`
     : `<span>Terhelés ${p.load||'—'}</span><span>Sebesség ${p.speed||'—'}</span>`;
@@ -1884,7 +1895,7 @@ function renderCart(){
     return `<div class="cart-item">
       <div class="cart-item-info">
         <div class="im">${p.brand} ${p.model}</div>
-        <div class="isize">${p.category==='rim' ? `R${p.rim}` : `${p.width}/${p.profile} R${p.rim}`}</div>
+        <div class="isize">${p.category==='rim' ? `R${p.rim}` : tireSizeLabel(p)}</div>
         <div class="qty-row">
           <button class="qty-dec" data-id="${p.id}">−</button>
           <span>${c.qty}</span>
@@ -2288,7 +2299,7 @@ function renderAdminTable(){
     return `
     <tr>
       <td>${isRim?'Felni':'Gumi'}</td><td>${p.brand}</td><td>${p.model}</td>
-      <td class="mono">${isRim ? `R${p.rim}` : `${p.width}/${p.profile}R${p.rim}`}</td>
+      <td class="mono">${isRim ? `R${p.rim}` : tireSizeLabel(p)}</td>
       <td>${isRim ? `${p.rimWidth?p.rimWidth+' szél., ':''}${p.holeCount||'—'} furatos, ${p.pcd||'—'}` : seasonLabel(p.season)}</td><td>${vehicleTypeLabel(p.vehicleType)}</td><td>${fmt(p.price)}</td><td>${p.stock}</td>
       <td><button class="edit-row" data-id="${p.id}">Szerkesztés</button><button class="del del-row" data-id="${p.id}">Törlés</button></td>
     </tr>`;
@@ -2483,7 +2494,7 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
   const brand = document.getElementById('pfBrand').value.trim();
   const model = document.getElementById('pfModel').value.trim();
   const width = document.getElementById('pfWidth').value;
-  const profile = document.getElementById('pfProfile').value;
+  const profile = document.getElementById('pfProfile').value.trim();
   const rim = document.getElementById('pfRim').value;
   const rimWidth = document.getElementById('pfRimWidth').value.trim();
   const holeCount = document.getElementById('pfHoleCount').value;

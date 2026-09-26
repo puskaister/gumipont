@@ -39,7 +39,7 @@ if ($stock < 0) error_response('Invalid input: stock');
 
 if ($category === 'tire') {
     $width = array_key_exists('width', $_POST) ? (int) $_POST['width'] : (int) ($existing['width'] ?? 0);
-    $profile = array_key_exists('profile', $_POST) ? (int) $_POST['profile'] : (int) ($existing['profile'] ?? 0);
+    $profile = array_key_exists('profile', $_POST) ? trim((string) $_POST['profile']) : ((string) ($existing['profile'] ?? ''));
     $season = array_key_exists('season', $_POST) ? (string) $_POST['season'] : ((string) ($existing['season'] ?? ''));
     $speed = array_key_exists('speed', $_POST) ? trim((string) $_POST['speed']) : $existing['speed'];
     $loadIndex = array_key_exists('loadIndex', $_POST) ? trim((string) $_POST['loadIndex']) : $existing['load_index'];
@@ -48,7 +48,7 @@ if ($category === 'tire') {
     $et = null;
     $rimWidth = null;
 
-    if ($width <= 0 || $profile <= 0) error_response('Invalid input: size');
+    if ($width <= 0 || $profile === '') error_response('Invalid input: size');
     if (!in_array($season, ['summer', 'winter', 'all-season'], true)) error_response('Invalid input: season');
 } else {
     $width = null;
@@ -84,7 +84,7 @@ $stmt = $mysqli->prepare(
     'UPDATE products SET category=?, brand=?, model=?, width=?, profile=?, rim=?, rim_width=?, hole_count=?, pcd=?, et=?, season=?, vehicle_type=?, price=?, shipping_cost=?, stock=?, speed=?, load_index=?, image=?, description=? WHERE id=?'
 );
 $stmt->bind_param(
-    'sssiississssddissssi',
+    'sssisssissssddissssi',
     $category, $brand, $model, $width, $profile, $rim, $rimWidth, $holeCount, $pcd, $et, $season, $vehicleType, $price, $shippingCost, $stock, $speed, $loadIndex, $image, $description, $id
 );
 $stmt->execute();

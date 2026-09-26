@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS products (
   brand       VARCHAR(120) NOT NULL,
   model       VARCHAR(120) NOT NULL,
   width       INT NULL,
-  profile     INT NULL,
+  profile     VARCHAR(10) NULL,
   rim         VARCHAR(10) NOT NULL,
   rim_width   VARCHAR(10) NULL,
   hole_count  INT NULL,

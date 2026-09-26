@@ -27,7 +27,10 @@ if ($stock < 0) error_response('Invalid input: stock');
 
 if ($category === 'tire') {
     $width = (int) ($_POST['width'] ?? 0);
-    $profile = (int) ($_POST['profile'] ?? 0);
+    // A "profil" néhány valós gumiméretnél nem szám: "R" (pl. 175R14) vagy
+    // "-" (pl. 7.50-16) is előfordul, ezért szövegként tároljuk, akárcsak a
+    // felni-specifikus mezőket (pcd, et).
+    $profile = trim((string) ($_POST['profile'] ?? ''));
     $season = (string) ($_POST['season'] ?? '');
     $speed = trim((string) ($_POST['speed'] ?? ''));
     $loadIndex = trim((string) ($_POST['loadIndex'] ?? ''));
@@ -36,7 +39,7 @@ if ($category === 'tire') {
     $et = null;
     $rimWidth = null;
 
-    if ($width <= 0 || $profile <= 0) error_response('Invalid input: size');
+    if ($width <= 0 || $profile === '') error_response('Invalid input: size');
     if (!in_array($season, ['summer', 'winter', 'all-season'], true)) error_response('Invalid input: season');
 } else {
     $width = null;
@@ -66,10 +69,10 @@ $stmt = $mysqli->prepare(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 $stmt->bind_param(
-    'sssiississssddissss',
+    'sssisssissssddissss',
     $category, $brand, $model, $width, $profile, $rim, $rimWidth, $holeCount, $pcd, $et, $season, $vehicleType, $price, $shippingCost, $stock, $speed, $loadIndex, $image, $description
 );
-// Típusjelzők sorrendben: category=s brand=s model=s width=i profile=i rim=s
+// Típusjelzők sorrendben: category=s brand=s model=s width=i profile=s rim=s
 // rim_width=s hole_count=i pcd=s et=s season=s vehicleType=s price=d
 // shipping_cost=d stock=i speed=s loadIndex=s image=s description=s
 // (19 érték -> 19 jelző). width/profile/season/hole_count/pcd/et/rim_width

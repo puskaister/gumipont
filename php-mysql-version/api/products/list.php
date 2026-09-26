@@ -10,7 +10,7 @@ $types = '';
 
 if (isset($_GET['category']) && $_GET['category'] !== '') { $where[] = 'category = ?'; $params[] = (string) $_GET['category']; $types .= 's'; }
 if (isset($_GET['width']) && $_GET['width'] !== '') { $where[] = 'width = ?'; $params[] = (int) $_GET['width']; $types .= 'i'; }
-if (isset($_GET['profile']) && $_GET['profile'] !== '') { $where[] = 'profile = ?'; $params[] = (int) $_GET['profile']; $types .= 'i'; }
+if (isset($_GET['profile']) && $_GET['profile'] !== '') { $where[] = 'profile = ?'; $params[] = (string) $_GET['profile']; $types .= 's'; }
 if (isset($_GET['rim']) && $_GET['rim'] !== '') { $where[] = 'rim = ?'; $params[] = (string) $_GET['rim']; $types .= 's'; }
 if (isset($_GET['rimWidth']) && $_GET['rimWidth'] !== '') { $where[] = 'rim_width = ?'; $params[] = (string) $_GET['rimWidth']; $types .= 's'; }
 if (isset($_GET['holeCount']) && $_GET['holeCount'] !== '') { $where[] = 'hole_count = ?'; $params[] = (int) $_GET['holeCount']; $types .= 'i'; }
@@ -37,7 +37,7 @@ foreach ($rows as $row) {
         'brand' => $row['brand'],
         'model' => $row['model'],
         'width' => $row['width'] !== null ? (int) $row['width'] : null,
-        'profile' => $row['profile'] !== null ? (int) $row['profile'] : null,
+        'profile' => $row['profile'],
         'rim' => (string) $row['rim'],
         'rimWidth' => $row['rim_width'],
         'holeCount' => $row['hole_count'] !== null ? (int) $row['hole_count'] : null,
