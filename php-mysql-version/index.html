@@ -2592,15 +2592,6 @@ function orderedNavTabs(){
   return ordered;
 }
 
-async function saveNavOrder(ids){
-  siteSettings.navOrder = ids;
-  try{
-    await apiJson('settings/update.php', 'POST', { navOrder: ids });
-  }catch(err){
-    alert('Nem sikerült menteni a menüsorrendet: ' + err.message);
-  }
-}
-
 async function toggleNavHidden(id){
   const hidden = new Set(siteSettings.hiddenNavIds);
   if(hidden.has(id)) hidden.delete(id); else hidden.add(id);
@@ -2710,11 +2701,11 @@ function renderPageNav(){
         ids.push(dragSrcId);
       }
 
+      siteSettings.navOrder = ids;
       siteSettings.topLevelNavIds = topLevelNavIds;
-      saveNavOrder(ids);
       renderPageNav();
       try{
-        await apiJson('settings/update.php', 'POST', { topLevelNavIds });
+        await apiJson('settings/update.php', 'POST', { navOrder: ids, topLevelNavIds });
       }catch(err){
         alert('Nem sikerült menteni a menü elrendezését: ' + err.message);
       }
