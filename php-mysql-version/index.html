@@ -313,6 +313,23 @@
   .nav-booking-tab{background:var(--signal);color:var(--paper);font-weight:600;text-decoration:none;}
   .nav-booking-tab:hover{color:var(--paper);filter:brightness(0.95);}
   .page-nav-toggle{display:none;}
+  .page-tab-more{
+    background:none;border:none;border-right:1px solid var(--concrete);cursor:pointer;
+    padding:13px 22px;font-size:13px;font-family:'IBM Plex Mono',monospace;
+    color:var(--graphite);white-space:nowrap;display:flex;align-items:center;gap:6px;
+  }
+  .page-tab-more.active{color:var(--ink);font-weight:600;box-shadow:inset 0 -3px 0 var(--signal);}
+  .page-tab-more:hover{color:var(--ink);}
+  /* position:fixed (nem absolute), a gomb pozíciójából JS-ben kiszámolva —
+     a .page-nav overflow-x:auto-ja (a görgethető fülsorhoz kell) egyébként
+     a függőlegesen kilógó legördülőt is levágná. */
+  .page-tab-dropdown{
+    display:none;flex-direction:column;position:fixed;
+    background:var(--paper);border:1px solid var(--ink);min-width:230px;z-index:250;
+  }
+  .page-tab-group.open .page-tab-dropdown{display:flex;}
+  .page-tab-dropdown .page-tab{border-right:none;border-bottom:1px solid var(--concrete);justify-content:space-between;}
+  .page-tab-dropdown .page-tab:last-child{border-bottom:none;}
 
   /* EXCEL VIEW */
   .excel-wrap{padding:44px 0 80px;padding-left:10px;}
@@ -372,6 +389,16 @@
       border-right:none;border-bottom:1px solid var(--concrete);
       padding:14px 24px;width:100%;justify-content:space-between;
     }
+    /* Mobilon a "Egyéb információk" csoport mindig nyitva áll (nem
+       legördülő), az almenük egyszerűen behúzva jelennek meg alatta. */
+    .page-tab-more{
+      border-bottom:1px solid var(--concrete);padding:14px 24px;
+      width:100%;justify-content:space-between;cursor:default;
+    }
+    .page-tab-dropdown{
+      display:flex !important;position:static;border:none;min-width:0;
+    }
+    .page-tab-dropdown .page-tab{padding-left:40px;}
   }
 
   /* SZÖVEGSZERKESZTŐ (RICH TEXT) */
@@ -2591,16 +2618,43 @@ function renderPageNav(){
   const nav = document.getElementById('pageNav');
   const allTabs = orderedNavTabs();
   const tabs = isAdmin ? allTabs : allTabs.filter(t => !siteSettings.hiddenNavIds.includes(t.id));
-  nav.innerHTML = tabs.map(t => {
+  // A "Webshop" mindig önálló, fix fül marad; minden más (Rólunk,
+  // Elérhetőségeink, Vásárlási feltételek, Adatkezelés, feltöltött oldalak)
+  // egy "Egyéb információk" legördülő almenübe kerül.
+  const shopTab = tabs.find(t => t.id === 'shop');
+  const subTabs = tabs.filter(t => t.id !== 'shop');
+  const subActive = subTabs.some(t => t.id === activePageId);
+
+  const renderTab = (t) => {
     const hidden = siteSettings.hiddenNavIds.includes(t.id);
     return `
-    <button class="page-tab ${activePageId===t.id?'active':''} ${hidden?'tab-hidden':''}" data-page="${t.id}" ${isAdmin?'draggable="true"':''}>
+    <button class="page-tab ${activePageId===t.id?'active':''} ${hidden?'tab-hidden':''}" data-page="${t.id}" ${isAdmin && t.id!=='shop'?'draggable="true"':''}>
       ${t.label}
       ${isAdmin && t.id!=='shop'?`<span class="tab-hide" data-toggle-hide="${t.id}">${hidden?'Mutat':'Elrejt'}</span>`:''}
       ${isAdmin && t.deletable?`<span class="tab-close" data-del-page="${t.id}">×</span>`:''}
     </button>`;
-  }).join('') + `<a class="page-tab nav-booking-tab" href="https://idopontfoglalas.gumiszervizem.hu/szervizek/gumipontszervizkft" target="_blank" rel="noopener noreferrer">ONLINE Időpontfoglalás</a>`;
+  };
+
+  nav.innerHTML = (shopTab ? renderTab(shopTab) : '')
+    + `<div class="page-tab-group" id="moreNavGroup">
+      <button type="button" class="page-tab-more ${subActive?'active':''}" id="moreNavToggle">Egyéb információk ▾</button>
+      <div class="page-tab-dropdown">${subTabs.map(renderTab).join('')}</div>
+    </div>`
+    + `<a class="page-tab nav-booking-tab" href="https://idopontfoglalas.gumiszervizem.hu/szervizek/gumipontszervizkft" target="_blank" rel="noopener noreferrer">ONLINE Időpontfoglalás</a>`;
   document.getElementById('pageNavCurrentLabel').textContent = pageLabel(activePageId);
+
+  document.getElementById('moreNavToggle').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const group = document.getElementById('moreNavGroup');
+    const opening = !group.classList.contains('open');
+    if(opening){
+      const rect = e.currentTarget.getBoundingClientRect();
+      const dropdown = group.querySelector('.page-tab-dropdown');
+      dropdown.style.top = rect.bottom + 'px';
+      dropdown.style.left = rect.left + 'px';
+    }
+    group.classList.toggle('open');
+  });
 
   nav.querySelectorAll('.page-tab:not(.nav-booking-tab)').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
@@ -2634,7 +2688,9 @@ function renderPageNav(){
 
   if(isAdmin){
     let dragSrcId = null;
-    nav.querySelectorAll('.page-tab:not(.nav-booking-tab)').forEach(btn=>{
+    // Csak az "Egyéb információk" almenün belüli fülek sorrendje cserélhető
+    // egymás közt — a Webshop mindig elöl marad, önálló, nem húzható.
+    nav.querySelectorAll('.page-tab-dropdown .page-tab').forEach(btn=>{
       btn.addEventListener('dragstart', ()=>{
         dragSrcId = btn.dataset.page;
         btn.classList.add('dragging-tab');
@@ -2649,7 +2705,7 @@ function renderPageNav(){
         e.preventDefault();
         const targetId = btn.dataset.page;
         if(!dragSrcId || dragSrcId === targetId) return;
-        const ids = tabs.map(t=>t.id);
+        const ids = subTabs.map(t=>t.id);
         const from = ids.indexOf(dragSrcId);
         const to = ids.indexOf(targetId);
         ids.splice(to, 0, ids.splice(from, 1)[0]);
@@ -2659,6 +2715,11 @@ function renderPageNav(){
     });
   }
 }
+
+document.addEventListener('click', (e)=>{
+  const group = document.getElementById('moreNavGroup');
+  if(group && group.classList.contains('open') && !group.contains(e.target)) group.classList.remove('open');
+});
 
 document.getElementById('pageNavToggle').addEventListener('click', ()=>{
   const nav = document.getElementById('pageNav');
