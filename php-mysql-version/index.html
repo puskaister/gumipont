@@ -77,30 +77,43 @@
 
   /* HERO */
   .hero{border-bottom:1px solid var(--ink);}
-  .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:460px;}
-  .hero-left{padding:56px 24px 56px 0;display:flex;flex-direction:column;justify-content:center;position:relative;}
+  .hero-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;min-height:460px;}
+  .hero-left{padding:44px 20px 44px 0;display:flex;flex-direction:column;justify-content:center;position:relative;}
   .rte-edit-btn{
     position:absolute;top:0;right:24px;background:none;border:1px solid var(--graphite-light);
     padding:6px 14px;font-size:12px;border-radius:var(--radius);color:var(--graphite);
   }
   .rte-edit-btn:hover{border-color:var(--ink);color:var(--ink);}
-  .hero-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--graphite);margin-bottom:18px;}
-  .hero-title{font-size:clamp(44px,6.5vw,84px);}
-  .hero-sub{max-width:420px;color:var(--graphite);font-size:16px;margin-top:18px;}
+  .hero-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:14px;}
+  .hero-title{font-size:clamp(28px,3.4vw,44px);}
+  .hero-sub{color:var(--graphite);font-size:14px;margin-top:14px;}
   .hero-right{
     border-left:1px solid var(--ink);
-    padding:32px 0 32px 40px;
-    display:flex;flex-direction:column;justify-content:center;gap:20px;
+    padding:32px 20px 32px 24px;
+    display:flex;flex-direction:column;justify-content:center;gap:16px;
     position:relative;
   }
-  .hero-tyre-wrap img{width:190px;height:190px;object-fit:cover;border-radius:var(--radius);flex:none;}
-  .hero-tyre-wrap{display:flex;align-items:center;gap:28px;}
-  .hero-tyre-wrap svg{width:190px;height:190px;flex:none;}
-  .size-caption{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite);line-height:1.8;}
+  .hero-tyre-wrap img{width:120px;height:120px;object-fit:cover;border-radius:var(--radius);flex:none;}
+  .hero-tyre-wrap{display:flex;align-items:center;gap:18px;}
+  .hero-tyre-wrap svg{width:120px;height:120px;flex:none;}
+  .size-caption{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--graphite);line-height:1.7;}
   .size-caption b{color:var(--ink);}
-  .size-code{font-size:34px;margin-bottom:6px;}
+  .size-code{font-size:24px;margin-bottom:6px;}
   .size-code .slash{color:var(--graphite-light);margin:0 2px;}
   .size-code .r{color:var(--signal);}
+  .hero-qr{
+    border-left:1px solid var(--ink);
+    padding:32px 0 32px 24px;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+    position:relative;text-align:center;gap:10px;
+  }
+  .hero-qr img{max-width:100%;max-height:160px;object-fit:contain;}
+  .hero-qr-placeholder{
+    width:140px;height:140px;border:1px dashed var(--graphite-light);border-radius:var(--radius);
+    display:flex;align-items:center;justify-content:center;color:var(--graphite-light);
+    font-size:11px;font-family:'IBM Plex Mono',monospace;text-align:center;padding:10px;
+  }
+  .hero-qr p{font-size:11px;color:var(--graphite);margin:0;}
 
   /* SEARCH MODULE */
   .search-module{
@@ -418,7 +431,7 @@
   }
   .rte-html-source:focus{outline:2px solid var(--signal);outline-offset:1px;}
   .rte-content img, .about-text img, .contact-note img, #shopIntroContent img, #heroSizeContent img{max-width:100%;border-radius:3px;margin:12px 0;display:block;}
-  #shopIntroContent, #heroSizeContent{max-width:100%;overflow-wrap:anywhere;}
+  #shopIntroContent, #heroSizeContent, #heroQrContent{max-width:100%;overflow-wrap:anywhere;}
   .rte-content img{cursor:pointer;}
   .rte-content img.rte-img-selected{outline:2px solid var(--signal);outline-offset:2px;}
   .rte-resize-handle{
@@ -445,6 +458,7 @@
   @media (max-width:860px){
     .hero-grid{grid-template-columns:1fr;}
     .hero-right{border-left:none;border-top:1px solid var(--ink);padding:32px 0;}
+    .hero-qr{border-left:none;border-top:1px solid var(--ink);padding:32px 0;}
     .shop{grid-template-columns:1fr;}
     .grid{grid-template-columns:repeat(2,1fr);}
     .form-grid{grid-template-columns:1fr;}
@@ -524,6 +538,10 @@
     <div class="hero-right">
       <button class="rte-edit-btn" id="heroSizeEditBtn" style="display:none;">Szerkesztés</button>
       <div id="heroSizeContent"></div>
+    </div>
+    <div class="hero-qr">
+      <button class="rte-edit-btn" id="heroQrEditBtn" style="display:none;">Szerkesztés</button>
+      <div id="heroQrContent"></div>
     </div>
   </div>
 </section>
@@ -1227,6 +1245,34 @@
       <div class="modal-actions">
         <button class="btn-ghost" data-close="heroSizeEditOverlay">Mégse</button>
         <button class="btn-primary" id="heroSizeSave">Mentés</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QR KÓD OSZLOP SZERKESZTÉSE -->
+<div class="overlay" id="heroQrEditOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h3>QR kód oszlop szerkesztése</h3><button class="modal-close" data-close="heroQrEditOverlay">×</button></div>
+    <div class="modal-body">
+      <div class="rte-toolbar" id="heroQrToolbar">
+        <button type="button" data-cmd="bold"><b>Félkövér</b></button>
+        <button type="button" data-cmd="italic"><i>Dőlt</i></button>
+        <button type="button" data-cmd="formatBlock" data-value="H2">Alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="H3">Kis alcím</button>
+        <button type="button" data-cmd="formatBlock" data-value="P">Bekezdés</button>
+        <button type="button" data-cmd="createLink">Link</button>
+        <button type="button" data-cmd="insertImage">Kép feltöltése</button>
+        <button type="button" data-fontsize="13">Kicsi betű</button>
+        <button type="button" data-fontsize="16">Normál betű</button>
+        <button type="button" data-fontsize="20">Nagy betű</button>
+      </div>
+      <div class="rte-content" id="heroQrEditor" contenteditable="true"></div>
+      <input type="file" accept="image/*" id="heroQrImgInput" style="display:none;">
+      <div class="hint-text">A "Kép feltöltése" gombbal töltsd fel a QR kód képét (pl. az időpontfoglaláshoz vagy egy közösségi oldalhoz) — a kép alá írhatsz rövid magyarázó szöveget is. A képre kattintva kijelölheted (ekkor "Kép törlése"-vel eltávolítható), a jobb alsó sarkánál húzva pedig átméretezheted.</div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close="heroQrEditOverlay">Mégse</button>
+        <button class="btn-primary" id="heroQrSave">Mentés</button>
       </div>
     </div>
   </div>
@@ -2806,6 +2852,7 @@ function switchPage(pageId){
     document.getElementById('shopView').style.display='block';
     renderShopIntro();
     renderHeroSize();
+    renderHeroQr();
   } else if(pageId==='rolunk'){
     document.getElementById('aboutView').style.display='block';
     renderAbout();
@@ -2944,6 +2991,7 @@ const DEFAULT_HERO_SIZE = `<div class="hero-tyre-wrap">
   <div class="size-code display">205<span class="slash">/</span>55<span class="r">R</span>16</div>
   <div class="size-caption">Ez van beütve minden oldalfalba. Ha mindhárom szám egyezik, a gumi biztosan illeszkedik a felnire — <b>szélesség</b> × <b>profil</b> × <b>felniátmérő</b>.</div>
 </div>`;
+const DEFAULT_HERO_QR = `<div class="hero-qr-placeholder">Ide kerül a QR kód</div><p>Szerkesztés gombbal töltsd fel a QR kód képét.</p>`;
 const DEFAULT_ABOUT = `<p>A gumipont.hu egy modern, méret alapú gumibolt. Nálunk nem kell találgatni: megadod a szélességet, a profilt és a felniméretet, mi pedig megmutatjuk, mi illik rá az autódra. A készletünket folyamatosan frissítjük, az árak és a raktárkészlet mindig aktuálisak.</p>`;
 const DEFAULT_TERMS = `<p>Ez a bekezdés a vásárlási feltételek helyőrzője — admin bejelentkezés után a "Szerkesztés" gombbal írhatod át a tényleges, jogilag érvényes feltételekre (elállási jog, garancia, fizetési és szállítási feltételek stb.).</p>`;
 const DEFAULT_CONTACT = {
@@ -3014,7 +3062,7 @@ Weboldal: naih.hu</p>
 
 <h2>6. A tájékoztató módosítása</h2>
 <p>Az Adatkezelő fenntartja a jogot jelen tájékoztató módosítására; a mindenkor hatályos változat a Weboldalon érhető el.</p>`;
-let siteContent = { shopIntro: DEFAULT_SHOP_INTRO, heroSize: DEFAULT_HERO_SIZE, about: DEFAULT_ABOUT, terms: DEFAULT_TERMS, privacy: DEFAULT_PRIVACY, contact: {...DEFAULT_CONTACT} };
+let siteContent = { shopIntro: DEFAULT_SHOP_INTRO, heroSize: DEFAULT_HERO_SIZE, heroQr: DEFAULT_HERO_QR, about: DEFAULT_ABOUT, terms: DEFAULT_TERMS, privacy: DEFAULT_PRIVACY, contact: {...DEFAULT_CONTACT} };
 
 async function loadContent(){
   try{
@@ -3023,6 +3071,7 @@ async function loadContent(){
     siteContent = {
       shopIntro: c.shop_intro ?? DEFAULT_SHOP_INTRO,
       heroSize: c.hero_size ?? DEFAULT_HERO_SIZE,
+      heroQr: c.hero_qr ?? DEFAULT_HERO_QR,
       about: c.about ?? DEFAULT_ABOUT,
       terms: c.terms ?? DEFAULT_TERMS,
       privacy: c.privacy ?? DEFAULT_PRIVACY,
@@ -3264,6 +3313,7 @@ function wireEditor(toolbarId, editorId, imgInputId){
 wireEditor('aboutToolbar', 'aboutEditor', 'aboutImgInput');
 wireEditor('shopIntroToolbar', 'shopIntroEditor', 'shopIntroImgInput');
 wireEditor('heroSizeToolbar', 'heroSizeEditor', 'heroSizeImgInput');
+wireEditor('heroQrToolbar', 'heroQrEditor', 'heroQrImgInput');
 wireEditor('contactNoteToolbar', 'contactNoteEditor', 'contactNoteImgInput');
 wireEditor('termsToolbar', 'termsEditor', null);
 wireEditor('privacyToolbar', 'privacyEditor', null);
@@ -3313,6 +3363,28 @@ document.getElementById('heroSizeSave').addEventListener('click', async ()=>{
   siteContent.heroSize = value;
   renderHeroSize();
   closeOverlay('heroSizeEditOverlay');
+});
+
+function renderHeroQr(){
+  document.getElementById('heroQrEditBtn').style.display = isAdmin ? 'inline-block' : 'none';
+  document.getElementById('heroQrContent').innerHTML = siteContent.heroQr;
+  wireContentImages(document.getElementById('heroQrContent'));
+}
+document.getElementById('heroQrEditBtn').addEventListener('click', ()=>{
+  document.getElementById('heroQrEditor').innerHTML = siteContent.heroQr;
+  openOverlay('heroQrEditOverlay');
+});
+document.getElementById('heroQrSave').addEventListener('click', async ()=>{
+  const value = document.getElementById('heroQrEditor').innerHTML.trim();
+  try{
+    await apiJson('content/update.php', 'POST', { key: 'hero_qr', value });
+  }catch(e){
+    alert('Nem sikerült menteni: ' + e.message);
+    return;
+  }
+  siteContent.heroQr = value;
+  renderHeroQr();
+  closeOverlay('heroQrEditOverlay');
 });
 
 /* ---- Rólunk ---- */
@@ -3473,6 +3545,7 @@ function checkResetTokenInUrl(){
   renderCartCount();
   renderShopIntro();
   renderHeroSize();
+  renderHeroQr();
   renderPageNav();
   checkResetTokenInUrl();
   initGdprConsent();
