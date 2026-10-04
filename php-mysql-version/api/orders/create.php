@@ -65,7 +65,13 @@ foreach ($items as $item) {
     $stmt->close();
 
     if (!$product) error_response("Product $productId not found");
-    if ((int) $product['stock'] < $qty) error_response("Insufficient stock for product $productId");
+    // Ha egy termékből 0 van készleten, az nem tiltja a rendelést — az ilyen
+    // termék a webshopban "Rendelhető (nincs készleten)" jelzéssel, bármekkora
+    // mennyiségben megrendelhető (utánrendelés). Ha VAN készlet, a megszokott
+    // módon nem lehet többet rendelni belőle, mint amennyi elérhető.
+    if ((int) $product['stock'] > 0 && (int) $product['stock'] < $qty) {
+        error_response("Insufficient stock for product $productId");
+    }
 
     $resolved[] = [
         'productId' => $productId,
@@ -123,7 +129,9 @@ try {
     $stmt->close();
 
     $itemStmt = $mysqli->prepare('INSERT INTO order_items (order_id, product_id, qty, unit_price) VALUES (?, ?, ?, ?)');
-    $stockStmt = $mysqli->prepare('UPDATE products SET stock = stock - ? WHERE id = ?');
+    // GREATEST(...,0): utánrendelhető (0 készletű) terméknél a készlet nem
+    // megy negatívba, egyszerűen 0 marad a rendelés után is.
+    $stockStmt = $mysqli->prepare('UPDATE products SET stock = GREATEST(stock - ?, 0) WHERE id = ?');
     foreach ($resolved as $it) {
         $itemStmt->bind_param('iiid', $orderId, $it['productId'], $it['qty'], $it['unitPrice']);
         $itemStmt->execute();

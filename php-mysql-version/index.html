@@ -192,7 +192,6 @@
   .card-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:10px;border-top:1px solid var(--concrete);}
   .card-price{font-size:22px;font-weight:700;}
   .card-stock{font-size:11px;color:var(--graphite);font-family:'IBM Plex Mono',monospace;}
-  .card-stock.low{color:var(--brake);}
   .add-btn{background:var(--ink);color:var(--paper);border:none;padding:9px 16px;font-size:13px;font-weight:600;border-radius:var(--radius);}
   .add-btn:hover{background:var(--graphite);}
   .add-btn:disabled{background:var(--concrete);color:var(--graphite-light);cursor:not-allowed;}
@@ -1644,9 +1643,9 @@ function renderGrid(){
       <div class="card-bottom">
         <div>
           <div class="card-price">${fmt(p.price)}</div>
-          <div class="card-stock ${outOfStock?'low':''}">${outOfStock?'Elfogyott':p.stock+' db készleten'}</div>
+          <div class="card-stock">${outOfStock?'Rendelhető (nincs készleten)':p.stock+' db készleten'}</div>
         </div>
-        <button class="add-btn" data-id="${p.id}" ${outOfStock?'disabled':''}>${outOfStock?'Nem elérhető':'Kosárba'}</button>
+        <button class="add-btn" data-id="${p.id}">Kosárba</button>
       </div>
     </div>`;
   }).join('');
@@ -1720,16 +1719,16 @@ function openProductDetail(id){
 
   const outOfStock = p.stock<=0;
   const stockEl = document.getElementById('pdStock');
-  stockEl.textContent = outOfStock ? 'Elfogyott' : p.stock+' db készleten';
-  stockEl.className = `pd-stock card-stock ${outOfStock?'low':''}`;
+  stockEl.textContent = outOfStock ? 'Rendelhető (nincs készleten)' : p.stock+' db készleten';
+  stockEl.className = 'pd-stock card-stock';
 
   const descEl = document.getElementById('pdDescription');
   descEl.textContent = p.description || '';
   descEl.style.display = p.description ? 'block' : 'none';
 
   const addBtn = document.getElementById('pdAddBtn');
-  addBtn.disabled = outOfStock;
-  addBtn.textContent = outOfStock ? 'Nem elérhető' : 'Kosárba';
+  addBtn.disabled = false;
+  addBtn.textContent = 'Kosárba';
   addBtn.onclick = ()=>addToCart(p.id);
 
   openOverlay('productDetailOverlay');
