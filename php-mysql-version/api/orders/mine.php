@@ -17,7 +17,7 @@ if ($orders) {
     $types = str_repeat('i', count($ids));
 
     $itemsStmt = $mysqli->prepare(
-        "SELECT oi.order_id, oi.qty, oi.unit_price, p.brand, p.model
+        "SELECT oi.order_id, oi.qty, oi.unit_price, oi.note, p.brand, p.model
          FROM order_items oi
          LEFT JOIN products p ON p.id = oi.product_id
          WHERE oi.order_id IN ($placeholders)"
@@ -33,6 +33,7 @@ if ($orders) {
             'model' => $row['model'],
             'qty' => (int) $row['qty'],
             'unitPrice' => (float) $row['unit_price'],
+            'note' => $row['note'],
         ];
     }
     $itemsStmt->close();

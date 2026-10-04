@@ -20,7 +20,7 @@ function attach_order_items(mysqli $mysqli, array $orders): array {
     $types = str_repeat('i', count($ids));
 
     $stmt = $mysqli->prepare(
-        "SELECT oi.order_id, oi.qty, oi.unit_price, p.brand, p.model
+        "SELECT oi.order_id, oi.qty, oi.unit_price, oi.note, p.brand, p.model
          FROM order_items oi
          LEFT JOIN products p ON p.id = oi.product_id
          WHERE oi.order_id IN ($placeholders)"
@@ -36,6 +36,7 @@ function attach_order_items(mysqli $mysqli, array $orders): array {
             'model' => $row['model'],
             'qty' => (int) $row['qty'],
             'unitPrice' => (float) $row['unit_price'],
+            'note' => $row['note'],
         ];
     }
     $stmt->close();

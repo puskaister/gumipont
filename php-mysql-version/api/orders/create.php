@@ -65,22 +65,28 @@ foreach ($items as $item) {
     $stmt->close();
 
     if (!$product) error_response("Product $productId not found");
-    // Ha egy termékből 0 van készleten, az nem tiltja a rendelést — az ilyen
-    // termék a webshopban "Rendelhető (nincs készleten)" jelzéssel, bármekkora
-    // mennyiségben megrendelhető (utánrendelés). Ha VAN készlet, a megszokott
-    // módon nem lehet többet rendelni belőle, mint amennyi elérhető.
-    if ((int) $product['stock'] > 0 && (int) $product['stock'] < $qty) {
-        error_response("Insufficient stock for product $productId");
-    }
 
-    $resolved[] = [
+    // Ha a készlet nem fedezi a kért mennyiséget (akár részben, akár
+    // teljesen), a rendelés sosem utasítódik el — a tétel helyette két
+    // sorra bomlik: ami ténylegesen készleten van, és a hiányzó rész
+    // "Rendelhető (nincs készleten)" jelöléssel (utánrendelés).
+    $stock = (int) $product['stock'];
+    $availableQty = max(0, min($stock, $qty));
+    $backorderQty = $qty - $availableQty;
+
+    $itemBase = [
         'productId' => $productId,
-        'qty' => $qty,
         'unitPrice' => (float) $product['price'],
         'shippingCost' => (float) $product['shipping_cost'],
         'brand' => $product['brand'],
         'model' => $product['model'],
     ];
+    if ($availableQty > 0) {
+        $resolved[] = $itemBase + ['qty' => $availableQty, 'note' => null];
+    }
+    if ($backorderQty > 0) {
+        $resolved[] = $itemBase + ['qty' => $backorderQty, 'note' => 'Rendelhető (nincs készleten)'];
+    }
 }
 
 $subtotal = array_reduce($resolved, fn ($sum, $it) => $sum + $it['unitPrice'] * $it['qty'], 0.0);
@@ -128,12 +134,12 @@ try {
     $orderId = $mysqli->insert_id;
     $stmt->close();
 
-    $itemStmt = $mysqli->prepare('INSERT INTO order_items (order_id, product_id, qty, unit_price) VALUES (?, ?, ?, ?)');
-    // GREATEST(...,0): utánrendelhető (0 készletű) terméknél a készlet nem
-    // megy negatívba, egyszerűen 0 marad a rendelés után is.
+    $itemStmt = $mysqli->prepare('INSERT INTO order_items (order_id, product_id, qty, unit_price, note) VALUES (?, ?, ?, ?, ?)');
+    // GREATEST(...,0): utánrendelhető (0 készletű, vagy a hiányzó résznél)
+    // a készlet nem megy negatívba, egyszerűen 0 marad a rendelés után is.
     $stockStmt = $mysqli->prepare('UPDATE products SET stock = GREATEST(stock - ?, 0) WHERE id = ?');
     foreach ($resolved as $it) {
-        $itemStmt->bind_param('iiid', $orderId, $it['productId'], $it['qty'], $it['unitPrice']);
+        $itemStmt->bind_param('iiids', $orderId, $it['productId'], $it['qty'], $it['unitPrice'], $it['note']);
         $itemStmt->execute();
         $stockStmt->bind_param('ii', $it['qty'], $it['productId']);
         $stockStmt->execute();
@@ -158,7 +164,7 @@ $order = [
     'subtotal' => $subtotal, 'discount' => $discount, 'shipping_cost' => $shippingCost, 'total' => $total,
 ];
 $orderItems = array_map(fn ($it) => [
-    'order_id' => $orderId, 'product_id' => $it['productId'], 'qty' => $it['qty'], 'unit_price' => $it['unitPrice'],
+    'order_id' => $orderId, 'product_id' => $it['productId'], 'qty' => $it['qty'], 'unit_price' => $it['unitPrice'], 'note' => $it['note'],
 ], $resolved);
 
 notify_new_order($config, $orderId, $order, $resolved, $deliveryMethod, $paymentMethod);
@@ -202,7 +208,8 @@ function notify_new_order(array $config, int $orderId, array $order, array $item
     foreach ($items as $it) {
         $lineTotal = number_format($it['unitPrice'] * $it['qty'], 0, ',', ' ');
         $unitPrice = number_format($it['unitPrice'], 0, ',', ' ');
-        $lines[] = "  - {$it['brand']} {$it['model']} x{$it['qty']} @ $unitPrice = $lineTotal";
+        $noteSuffix = !empty($it['note']) ? " — {$it['note']}" : '';
+        $lines[] = "  - {$it['brand']} {$it['model']} x{$it['qty']} @ $unitPrice = $lineTotal$noteSuffix";
     }
     $lines[] = '';
     $lines[] = 'Összesítés';

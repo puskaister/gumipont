@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   product_id  INT NOT NULL,
   qty         INT NOT NULL,
   unit_price  DECIMAL(10,2) NOT NULL,
+  note        VARCHAR(100) NULL,
   CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
