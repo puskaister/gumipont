@@ -177,8 +177,9 @@
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;}
   .tyre-icon{width:76px;height:76px;flex:none;}
   .season-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 7px;border-radius:2px;align-self:flex-start;border:1px solid var(--ink);}
-  .season-summer{background:var(--ink);color:var(--paper);}
-  .season-winter{background:var(--paper);color:var(--ink);}
+  .season-summer{background:#1E7A34;color:var(--paper);border-color:#1E7A34;}
+  .season-winter{background:#1D5FD1;color:var(--paper);border-color:#1D5FD1;}
+  .season-allseason{background:linear-gradient(135deg, #1E7A34 50%, #1D5FD1 50%);color:var(--paper);border-color:var(--ink);}
   .season-all{background:var(--concrete);color:var(--ink);border-color:var(--graphite-light);}
   .card-tags{display:flex;flex-direction:column;gap:6px;align-items:flex-end;}
   .vehicle-tag{
@@ -1557,7 +1558,7 @@ function tyreIconSVG(season){
 }
 
 function seasonLabel(s){ return s==='summer'?'Nyári':s==='winter'?'Téli':'Négyévszakos'; }
-function seasonClass(s){ return s==='summer'?'season-summer':s==='winter'?'season-winter':'season-all'; }
+function seasonClass(s){ return s==='summer'?'season-summer':s==='winter'?'season-winter':'season-allseason'; }
 function vehicleTypeLabel(v){ return v==='truck'?'Teherautó':'Személyautó'; }
 function excerpt(text, wordCount){
   const words = text.trim().split(/\s+/);
