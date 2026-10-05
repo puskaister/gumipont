@@ -80,6 +80,8 @@ foreach ($items as $item) {
         'shippingCost' => (float) $product['shipping_cost'],
         'brand' => $product['brand'],
         'model' => $product['model'],
+        // A termékoldal összes adata — az értesítő email tételleírásához.
+        'details' => product_details_for_email($product),
     ];
     if ($availableQty > 0) {
         $resolved[] = $itemBase + ['qty' => $availableQty, 'note' => null];
@@ -210,6 +212,16 @@ function notify_new_order(array $config, mysqli $mysqli, int $orderId, array $or
         $unitPrice = number_format($it['unitPrice'], 0, ',', ' ');
         $noteSuffix = !empty($it['note']) ? " — {$it['note']}" : '';
         $lines[] = "  - {$it['brand']} {$it['model']} x{$it['qty']} @ $unitPrice = $lineTotal$noteSuffix";
+        foreach ($it['details']['specs'] as $label => $value) {
+            $lines[] = "      $label: $value";
+        }
+        $lines[] = '      Készlet: ' . (!empty($it['note']) ? $it['note'] : 'Készleten');
+        if ($it['details']['description'] !== '') {
+            $lines[] = '      Leírás: ' . preg_replace('/\s+/', ' ', $it['details']['description']);
+        }
+        if ($it['details']['imageUrl'] !== '') {
+            $lines[] = '      Kép: ' . $it['details']['imageUrl'];
+        }
     }
     $lines[] = '';
     $lines[] = 'Összesítés';
@@ -267,12 +279,31 @@ function render_order_invoice_html(mysqli $mysqli, int $orderId, array $order, a
     $th = 'padding:8px 10px;border-bottom:2px solid #222;font-size:12px;text-align:left;text-transform:uppercase;letter-spacing:.04em;color:#555;';
     $rows = '';
     foreach ($items as $it) {
-        $note = !empty($it['note']) ? '<br><span style="color:#c0392b;font-size:12px;">' . $h($it['note']) . '</span>' : '';
+        $d = $it['details'];
+        $stockLine = !empty($it['note'])
+            ? '<span style="color:#c0392b;font-weight:700;">' . $h($it['note']) . '</span>'
+            : '<span style="color:#2e7d32;font-weight:700;">Készleten</span>';
+        $specs = '';
+        foreach ($d['specs'] as $label => $value) {
+            $specs .= '<tr><td style="padding:1px 10px 1px 0;color:#777;font-size:12px;white-space:nowrap;vertical-align:top;">' . $h($label)
+                . '</td><td style="padding:1px 0;font-size:12px;">' . $h($value) . '</td></tr>';
+        }
+        $specs .= '<tr><td style="padding:1px 10px 1px 0;color:#777;font-size:12px;">Készlet</td><td style="padding:1px 0;font-size:12px;">' . $stockLine . '</td></tr>';
+        $desc = $d['description'] !== ''
+            ? '<div style="margin-top:6px;font-size:12px;line-height:1.5;color:#444;">' . nl2br($h($d['description'])) . '</div>'
+            : '';
+        $img = $d['imageUrl'] !== ''
+            ? '<td style="width:76px;vertical-align:top;padding-right:12px;"><a href="' . $h($d['imageUrl']) . '"><img src="' . $h($d['imageUrl']) . '" width="72" alt="" style="display:block;width:72px;height:auto;border:1px solid #e3e3e3;border-radius:3px;"></a></td>'
+            : '';
+        $itemCell = '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' . $img . '<td style="vertical-align:top;">'
+            . '<div style="font-size:14px;"><strong>' . $h($it['brand']) . '</strong> ' . $h($it['model']) . '</div>'
+            . '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:4px;">' . $specs . '</table>'
+            . $desc . '</td></tr></table>';
         $rows .= '<tr>'
-            . '<td style="' . $td . '"><strong>' . $h($it['brand']) . '</strong> ' . $h($it['model']) . $note . '</td>'
-            . '<td style="' . $td . 'text-align:right;">' . (int) $it['qty'] . ' db</td>'
-            . '<td style="' . $td . 'text-align:right;white-space:nowrap;">' . $money($it['unitPrice']) . '</td>'
-            . '<td style="' . $td . 'text-align:right;white-space:nowrap;">' . $money($it['unitPrice'] * $it['qty']) . '</td>'
+            . '<td style="' . $td . 'vertical-align:top;">' . $itemCell . '</td>'
+            . '<td style="' . $td . 'text-align:right;vertical-align:top;white-space:nowrap;">' . (int) $it['qty'] . ' db</td>'
+            . '<td style="' . $td . 'text-align:right;vertical-align:top;white-space:nowrap;">' . $money($it['unitPrice']) . '</td>'
+            . '<td style="' . $td . 'text-align:right;vertical-align:top;white-space:nowrap;">' . $money($it['unitPrice'] * $it['qty']) . '</td>'
             . '</tr>';
     }
 
@@ -308,4 +339,53 @@ function render_order_invoice_html(mysqli $mysqli, int $orderId, array $order, a
         . '<tr><td style="padding:12px 28px 24px;"><table role="presentation" align="right" cellpadding="0" cellspacing="0">' . $sums . '</table></td></tr>'
         . '<tr><td style="padding:14px 28px;background:#fafafa;border-top:1px solid #e3e3e3;font-size:11px;color:#888;">Ez a számlakép a rendelés összesítője, nem minősül számlának.</td></tr>'
         . '</table></body></html>';
+}
+
+// A termékoldalon (termék részletei ablak) látható összes adat, ugyanazokkal
+// a feliratokkal, mint a weboldalon.
+function product_details_for_email(array $p): array {
+    $isRim = ($p['category'] ?? 'tire') === 'rim';
+    $vehicle = ($p['vehicle_type'] ?? 'car') === 'truck' ? 'Teherautó' : 'Személyautó';
+    $dash = fn ($v) => ($v === null || $v === '') ? '—' : (string) $v;
+
+    if ($isRim) {
+        $specs = [
+            'Kategória' => 'Felni',
+            'Jármű' => $vehicle,
+            'Méret' => 'R' . $p['rim'],
+            'Szélesség' => $dash($p['rim_width'] ?? ''),
+            'Furatok száma' => $dash($p['hole_count'] ?? ''),
+            'Osztókör' => $dash($p['pcd'] ?? ''),
+            'ET' => $dash($p['et'] ?? ''),
+        ];
+    } else {
+        $season = ['summer' => 'Nyári', 'winter' => 'Téli'][$p['season'] ?? ''] ?? 'Négyévszakos';
+        $profile = (string) ($p['profile'] ?? '');
+        $size = $profile === 'R' ? "{$p['width']}R{$p['rim']}"
+            : ($profile === '-' ? "{$p['width']}-{$p['rim']}" : "{$p['width']}/{$profile}R{$p['rim']}");
+        $specs = [
+            'Évszak' => $season,
+            'Jármű' => $vehicle,
+            'Méret' => $size,
+            'Terhelés' => $dash($p['load_index'] ?? ''),
+            'Sebesség' => $dash($p['speed'] ?? ''),
+        ];
+    }
+
+    $imageUrl = '';
+    if (!empty($p['image'])) {
+        $image = (string) $p['image'];
+        if (preg_match('#^https?://#i', $image)) {
+            $imageUrl = $image;
+        } else {
+            $host = $_SERVER['HTTP_HOST'] ?? 'gumipont.hu';
+            $imageUrl = 'https://' . $host . '/' . ltrim($image, '/');
+        }
+    }
+
+    return [
+        'specs' => $specs,
+        'description' => trim((string) ($p['description'] ?? '')),
+        'imageUrl' => $imageUrl,
+    ];
 }
