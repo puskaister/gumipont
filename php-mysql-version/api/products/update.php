@@ -27,7 +27,9 @@ $rim = array_key_exists('rim', $_POST) ? trim((string) $_POST['rim']) : (string)
 $vehicleType = array_key_exists('vehicleType', $_POST) ? (string) $_POST['vehicleType'] : $existing['vehicle_type'];
 $price = array_key_exists('price', $_POST) ? (float) $_POST['price'] : (float) $existing['price'];
 $shippingCost = array_key_exists('shippingCost', $_POST) ? (float) $_POST['shippingCost'] : (float) $existing['shipping_cost'];
-$stock = array_key_exists('stock', $_POST) ? (int) $_POST['stock'] : (int) $existing['stock'];
+$stock = array_key_exists('stock', $_POST)
+    ? (trim((string) $_POST['stock']) === '' ? 0 : (int) $_POST['stock'])
+    : (int) $existing['stock'];
 $description = array_key_exists('description', $_POST) ? trim((string) $_POST['description']) : $existing['description'];
 
 if ($brand === '' || $model === '') error_response('Invalid input: brand/model');

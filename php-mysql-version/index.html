@@ -1053,7 +1053,7 @@
         </div>
         <div class="form-field"><label>Ár (HUF)</label><input id="pfPrice" type="number"></div>
         <div class="form-field"><label>Szállítási költség (HUF)</label><input id="pfShippingCost" type="number" min="0" placeholder="pl. 2000"></div>
-        <div class="form-field"><label>Készlet (db)</label><input id="pfStock" type="number"></div>
+        <div class="form-field"><label>Készlet (db)</label><input id="pfStock" type="number" min="0" placeholder="Üresen hagyva: rendelhető"></div>
         <div class="form-field pf-tire-only"><label>Sebességindex</label><input id="pfSpeed" placeholder="pl. V"></div>
         <div class="form-field pf-tire-only"><label>Terhelésindex</label><input id="pfLoad" placeholder="pl. 91"></div>
         <div class="form-field full">
@@ -2300,7 +2300,7 @@ function renderAdminTable(){
     <tr>
       <td>${isRim?'Felni':'Gumi'}</td><td>${p.brand}</td><td>${p.model}</td>
       <td class="mono">${isRim ? `R${p.rim}` : tireSizeLabel(p)}</td>
-      <td>${isRim ? `${p.rimWidth?p.rimWidth+' szél., ':''}${p.holeCount||'—'} furatos, ${p.pcd||'—'}` : seasonLabel(p.season)}</td><td>${vehicleTypeLabel(p.vehicleType)}</td><td>${fmt(p.price)}</td><td>${p.stock}</td>
+      <td>${isRim ? `${p.rimWidth?p.rimWidth+' szél., ':''}${p.holeCount||'—'} furatos, ${p.pcd||'—'}` : seasonLabel(p.season)}</td><td>${vehicleTypeLabel(p.vehicleType)}</td><td>${fmt(p.price)}</td><td>${p.stock>0 ? p.stock : '0 <span style="color:var(--graphite);font-size:11px;">(rendelhető)</span>'}</td>
       <td><button class="edit-row" data-id="${p.id}">Szerkesztés</button><button class="del del-row" data-id="${p.id}">Törlés</button></td>
     </tr>`;
   }).join('');
@@ -2502,11 +2502,17 @@ document.getElementById('pfSave').addEventListener('click', async ()=>{
   const et = document.getElementById('pfEt').value.trim();
   const price = document.getElementById('pfPrice').value;
   const shippingCost = document.getElementById('pfShippingCost').value;
-  const stock = document.getElementById('pfStock').value;
+  // Üres vagy 0 készlet: a termék "Rendelhető (nincs készleten)" jelöléssel jelenik meg.
+  const stock = document.getElementById('pfStock').value.trim() || '0';
   const errEl = document.getElementById('pfError');
 
-  if(!brand || !model || !rim || !price || shippingCost==='' || stock===''){
-    errEl.textContent = 'Töltsd ki a márkát, típust, a felni méretét, az árat, a szállítási költséget és a készletet.';
+  if(!brand || !model || !rim || !price || shippingCost===''){
+    errEl.textContent = 'Töltsd ki a márkát, típust, a felni méretét, az árat és a szállítási költséget.';
+    errEl.style.display='block';
+    return;
+  }
+  if(parseInt(stock, 10) < 0){
+    errEl.textContent = 'A készlet nem lehet negatív.';
     errEl.style.display='block';
     return;
   }
