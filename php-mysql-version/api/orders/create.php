@@ -167,7 +167,7 @@ $orderItems = array_map(fn ($it) => [
     'order_id' => $orderId, 'product_id' => $it['productId'], 'qty' => $it['qty'], 'unit_price' => $it['unitPrice'], 'note' => $it['note'],
 ], $resolved);
 
-notify_new_order($config, $orderId, $order, $resolved, $deliveryMethod, $paymentMethod);
+notify_new_order($config, $mysqli, $orderId, $order, $resolved, $deliveryMethod, $paymentMethod);
 
 respond(['order' => $order, 'items' => $orderItems], 201);
 
@@ -175,7 +175,7 @@ respond(['order' => $order, 'items' => $orderItems], 201);
 // másolatban puskaisandor@gmail.com-nak is) — az api/config.php 'smtp'
 // beállításán keresztül (ha ki van töltve), különben a natív mail()
 // függvényre esik vissza (lásd api/lib/mailer.php).
-function notify_new_order(array $config, int $orderId, array $order, array $items, string $deliveryMethod, string $paymentMethod): void {
+function notify_new_order(array $config, mysqli $mysqli, int $orderId, array $order, array $items, string $deliveryMethod, string $paymentMethod): void {
     $to = 'rendeles@gumipont.hu';
     $bcc = 'puskaisandor@gmail.com';
 
@@ -222,8 +222,90 @@ function notify_new_order(array $config, int $orderId, array $order, array $item
     $lines[] = 'Végösszeg: ' . number_format($order['total'], 0, ',', ' ');
     $messageBody = implode("\r\n", $lines);
 
-    $sent = send_app_email($config, $to, "Új rendelés #$orderId - gumipont.hu", $messageBody, $bcc);
+    $htmlBody = render_order_invoice_html($mysqli, $orderId, $order, $items, $deliveryLabel, $paymentLabel);
+
+    $sent = send_app_email($config, $to, "Új rendelés #$orderId - gumipont.hu", $messageBody, $bcc, $htmlBody);
     if (!$sent) {
         error_log("[gumipont uj rendeles ertesito] Nem sikerult emailt kuldeni a(z) #$orderId rendelesrol");
     }
+}
+
+// Számlakép az értesítő emailbe: eladó / vevő blokk, tételtábla, összesítés.
+// Csak inline stílusokkal (a levelezőkliensek nagy része a <style> blokkot
+// eldobja). Nem hivatalos számla — azt a számlázó program állítja ki.
+function render_order_invoice_html(mysqli $mysqli, int $orderId, array $order, array $items, string $deliveryLabel, string $paymentLabel): string {
+    $h = fn ($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+    $currency = (string) (get_setting($mysqli, 'currency') ?: 'HUF');
+    $money = fn ($v) => number_format((float) $v, 0, ',', ' ') . ' ' . $h($currency);
+
+    // Eladó adatai az oldal "Elérhetőségeink" tartalmából.
+    $contact = [];
+    $res = $mysqli->query("SELECT `value` FROM site_content WHERE `key` = 'contact'");
+    if ($res && ($row = $res->fetch_assoc())) {
+        $contact = json_decode((string) $row['value'], true) ?: [];
+    }
+    $sellerLines = array_filter([
+        'Gumipont Szerviz Kft.',
+        $contact['address'] ?? '',
+        !empty($contact['phone']) ? 'Tel.: ' . $contact['phone'] : '',
+        $contact['email'] ?? '',
+    ]);
+
+    $buyerLines = [$order['customer_name']];
+    if ($order['customer_type'] === 'company') $buyerLines[] = 'Adószám: ' . $order['tax_number'];
+    if ($deliveryLabel !== 'Átvétel' && $order['shipping_zip'] !== '') {
+        $buyerLines[] = $order['shipping_zip'] . ' ' . $order['shipping_city'];
+        $buyerLines[] = $order['shipping_street'] . ' ' . $order['shipping_house_no'] . '.';
+    }
+    $buyerLines[] = $order['customer_email'];
+    $buyerLines[] = $order['customer_phone'];
+
+    $block = fn (array $lines) => implode('<br>', array_map($h, $lines));
+    $date = (new DateTime('now', new DateTimeZone('Europe/Budapest')))->format('Y.m.d. H:i');
+
+    $td = 'padding:8px 10px;border-bottom:1px solid #e3e3e3;font-size:14px;';
+    $th = 'padding:8px 10px;border-bottom:2px solid #222;font-size:12px;text-align:left;text-transform:uppercase;letter-spacing:.04em;color:#555;';
+    $rows = '';
+    foreach ($items as $it) {
+        $note = !empty($it['note']) ? '<br><span style="color:#c0392b;font-size:12px;">' . $h($it['note']) . '</span>' : '';
+        $rows .= '<tr>'
+            . '<td style="' . $td . '"><strong>' . $h($it['brand']) . '</strong> ' . $h($it['model']) . $note . '</td>'
+            . '<td style="' . $td . 'text-align:right;">' . (int) $it['qty'] . ' db</td>'
+            . '<td style="' . $td . 'text-align:right;white-space:nowrap;">' . $money($it['unitPrice']) . '</td>'
+            . '<td style="' . $td . 'text-align:right;white-space:nowrap;">' . $money($it['unitPrice'] * $it['qty']) . '</td>'
+            . '</tr>';
+    }
+
+    $sumRow = fn (string $label, string $value, bool $strong = false) =>
+        '<tr><td style="padding:4px 10px;text-align:right;font-size:' . ($strong ? '16px;font-weight:700;border-top:2px solid #222;padding-top:8px;' : '14px;') . '">' . $h($label)
+        . '</td><td style="padding:4px 10px;text-align:right;white-space:nowrap;font-size:' . ($strong ? '16px;font-weight:700;border-top:2px solid #222;padding-top:8px;' : '14px;') . '">' . $value . '</td></tr>';
+    $sums = $sumRow('Részösszeg', $money($order['subtotal']));
+    if ((float) $order['discount'] > 0) $sums .= $sumRow('Kedvezmény', '−' . $money($order['discount']));
+    $sums .= $sumRow('Szállítási díj', $money($order['shipping_cost']));
+    $sums .= $sumRow('Végösszeg', $money($order['total']), true);
+
+    return '<!doctype html><html><body style="margin:0;padding:24px;background:#f2f2f2;font-family:Arial,Helvetica,sans-serif;color:#222;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;margin:0 auto;background:#fff;border:1px solid #ddd;">'
+        . '<tr><td style="padding:24px 28px;border-bottom:3px solid #222;">'
+        .   '<table role="presentation" width="100%"><tr>'
+        .   '<td style="font-size:22px;font-weight:700;">gumipont.hu</td>'
+        .   '<td style="text-align:right;font-size:13px;color:#555;">Rendelés száma: <strong style="color:#222;">#' . $orderId . '</strong><br>Dátum: ' . $h($date) . '</td>'
+        .   '</tr></table>'
+        . '</td></tr>'
+        . '<tr><td style="padding:20px 28px;">'
+        .   '<table role="presentation" width="100%"><tr>'
+        .   '<td style="vertical-align:top;width:50%;font-size:14px;line-height:1.5;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#777;margin-bottom:4px;">Eladó</div>' . $block($sellerLines) . '</td>'
+        .   '<td style="vertical-align:top;width:50%;font-size:14px;line-height:1.5;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#777;margin-bottom:4px;">Vevő</div>' . $block($buyerLines) . '</td>'
+        .   '</tr></table>'
+        .   '<p style="font-size:13px;color:#555;margin:16px 0 0;">Szállítás: <strong style="color:#222;">' . $h($deliveryLabel) . '</strong> &nbsp;·&nbsp; Fizetés: <strong style="color:#222;">' . $h($paymentLabel) . '</strong></p>'
+        . '</td></tr>'
+        . '<tr><td style="padding:0 28px;">'
+        .   '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+        .   '<tr><th style="' . $th . '">Tétel</th><th style="' . $th . 'text-align:right;">Menny.</th><th style="' . $th . 'text-align:right;">Egységár</th><th style="' . $th . 'text-align:right;">Összeg</th></tr>'
+        .   $rows
+        .   '</table>'
+        . '</td></tr>'
+        . '<tr><td style="padding:12px 28px 24px;"><table role="presentation" align="right" cellpadding="0" cellspacing="0">' . $sums . '</table></td></tr>'
+        . '<tr><td style="padding:14px 28px;background:#fafafa;border-top:1px solid #e3e3e3;font-size:11px;color:#888;">Ez a számlakép a rendelés összesítője, nem minősül számlának.</td></tr>'
+        . '</table></body></html>';
 }
