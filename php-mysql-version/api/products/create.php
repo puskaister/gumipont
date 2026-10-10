@@ -15,7 +15,9 @@ $rim = trim((string) ($_POST['rim'] ?? ''));
 $vehicleType = (string) ($_POST['vehicleType'] ?? 'car');
 $price = (float) ($_POST['price'] ?? -1);
 $shippingCost = (float) ($_POST['shippingCost'] ?? -1);
-$stock = (int) ($_POST['stock'] ?? -1);
+// Üres készlet = 0 db: a termék "Rendelhető (nincs készleten)" jelöléssel kerül fel.
+$stockRaw = trim((string) ($_POST['stock'] ?? ''));
+$stock = $stockRaw === '' ? 0 : (int) $stockRaw;
 $description = trim((string) ($_POST['description'] ?? ''));
 
 if ($brand === '' || $model === '') error_response('Invalid input: brand/model');

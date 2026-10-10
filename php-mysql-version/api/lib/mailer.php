@@ -9,10 +9,27 @@ declare(strict_types=1);
 // hitelesített kapcsolattal küldünk. Ha nincs 'smtp' konfiguráció, a régi
 // mail()-alapú küldésre esünk vissza (helyi/teszt környezetekhez).
 
-function send_app_email(array $config, string $to, string $subject, string $body, ?string $bcc = null): bool {
+// A levél MIME-része: csak szöveges, vagy ha van HTML változat is,
+// multipart/alternative (a levelezőkliens a HTML-t mutatja, a szöveges a
+// tartalék). A részek base64 kódolásúak, így a hosszú HTML-sorok sem
+// ütköznek az SMTP 998 karakteres sorhossz-korlátjába.
+function build_mime_body(string $body, ?string $htmlBody): array {
+    if ($htmlBody === null || $htmlBody === '') {
+        return ["Content-Type: text/plain; charset=UTF-8", $body];
+    }
+    $boundary = 'gp_' . bin2hex(random_bytes(12));
+    $part = fn (string $type, string $content) => "--$boundary\r\n"
+        . "Content-Type: $type; charset=UTF-8\r\n"
+        . "Content-Transfer-Encoding: base64\r\n\r\n"
+        . chunk_split(base64_encode($content), 76, "\r\n");
+    $mime = $part('text/plain', $body) . $part('text/html', $htmlBody) . "--$boundary--";
+    return ["Content-Type: multipart/alternative; boundary=\"$boundary\"", $mime];
+}
+
+function send_app_email(array $config, string $to, string $subject, string $body, ?string $bcc = null, ?string $htmlBody = null): bool {
     $smtp = $config['smtp'] ?? null;
     if (is_array($smtp) && !empty($smtp['host']) && !empty($smtp['username']) && !empty($smtp['password'])) {
-        if (smtp_send_mail($smtp, $to, $subject, $body, $bcc)) {
+        if (smtp_send_mail($smtp, $to, $subject, $body, $bcc, $htmlBody)) {
             return true;
         }
         // Ha az SMTP-küldés hibázik, még megpróbáljuk a natív mail()-t is,
@@ -23,17 +40,18 @@ function send_app_email(array $config, string $to, string $subject, string $body
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $fromDomain = preg_replace('/^www\./', '', explode(':', $host)[0]);
     $from = $smtp['from'] ?? "no-reply@$fromDomain";
+    [$contentType, $mimeBody] = build_mime_body($body, $htmlBody);
     $headers = "MIME-Version: 1.0\r\n"
-        . "Content-Type: text/plain; charset=UTF-8\r\n"
+        . "$contentType\r\n"
         . "From: $from";
     if ($bcc !== null && $bcc !== '') {
         $headers .= "\r\nBcc: $bcc";
     }
 
-    return @mail($to, $encodedSubject, $body, $headers);
+    return @mail($to, $encodedSubject, $mimeBody, $headers);
 }
 
-function smtp_send_mail(array $smtp, string $to, string $subject, string $body, ?string $bcc = null): bool {
+function smtp_send_mail(array $smtp, string $to, string $subject, string $body, ?string $bcc = null, ?string $htmlBody = null): bool {
     $host = (string) ($smtp['host'] ?? '');
     $port = (int) ($smtp['port'] ?? 465);
     $username = (string) ($smtp['username'] ?? '');
@@ -103,10 +121,11 @@ function smtp_send_mail(array $smtp, string $to, string $subject, string $body, 
     $step('DATA', 'DATA', '354');
 
     $encodedSubject = mb_encode_mimeheader($subject, 'UTF-8', 'B');
-    $headers = "From: $from\r\nTo: $to\r\nSubject: $encodedSubject\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+    [$contentType, $mimeBody] = build_mime_body($body, $htmlBody);
+    $headers = "From: $from\r\nTo: $to\r\nSubject: $encodedSubject\r\nMIME-Version: 1.0\r\n$contentType\r\n";
     // Az SMTP DATA-blokkot egy önálló sorban lévő pont zárja, ezért a
     // levéltestben soronként kezdődő pontokat duplázni kell (dot-stuffing).
-    $escapedBody = preg_replace('/^\./m', '..', $body);
+    $escapedBody = preg_replace('/^\./m', '..', $mimeBody);
     $step('body', $headers . "\r\n" . $escapedBody . "\r\n.", '250');
 
     fwrite($socket, "QUIT\r\n");
